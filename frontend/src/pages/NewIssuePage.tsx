@@ -2,20 +2,23 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { createPetition, uploadPhoto } from '../api/client'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { MapPicker } from '../components/MapPicker'
+import { useAuth } from '../context/AuthContext'
 
 const DEFAULT_LAT = 12.9716
 const DEFAULT_LNG = 77.5946
 
 export function NewIssuePage() {
   const navigate = useNavigate()
+  const { user, loading: authLoading, googleEnabled } = useAuth()
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [address, setAddress] = useState('')
   const [lat, setLat] = useState(DEFAULT_LAT)
   const [lng, setLng] = useState(DEFAULT_LNG)
-  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,7 +34,7 @@ export function NewIssuePage() {
       setError('Please upload a photo of the issue')
       return
     }
-    setLoading(true)
+    setSubmitting(true)
     setError('')
     try {
       const photo_url = await uploadPhoto(file)
@@ -44,8 +47,17 @@ export function NewIssuePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit')
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
+  }
+
+  if (!authLoading && googleEnabled && !user) {
+    return (
+      <LoginPrompt
+        title="Sign in to report an issue"
+        description="Use your Google account so complaints are sent from your Gmail to the municipal authority."
+      />
+    )
   }
 
   return (
@@ -99,10 +111,10 @@ export function NewIssuePage() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           className="w-full py-3 bg-civic-600 text-white font-semibold rounded-xl hover:bg-civic-700 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Analyzing & drafting complaint…' : 'Submit & Review Draft'}
+          {submitting ? 'Analyzing & drafting complaint…' : 'Submit & Review Draft'}
         </button>
       </form>
     </div>

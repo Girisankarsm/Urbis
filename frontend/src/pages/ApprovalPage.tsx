@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { approvePetition, getPetition, getPendingApprovals } from '../api/client'
+import { LoginPrompt } from '../components/LoginPrompt'
 import { StatusBadge } from '../components/StatusBadge'
+import { useAuth } from '../context/AuthContext'
 import type { Petition } from '../types'
 
 export function ApprovalsPage() {
@@ -68,6 +70,7 @@ function ApprovalCard({ petition, type }: { petition: Petition; type: 'complaint
 export function ApprovalDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user, loading: authLoading, googleEnabled } = useAuth()
   const params = new URLSearchParams(window.location.search)
   const isEscalation = params.get('escalation') === '1'
 
@@ -105,6 +108,15 @@ export function ApprovalDetailPage() {
     }
   }
 
+  if (authLoading) return <p className="text-slate-500">Loading…</p>
+  if (googleEnabled && !user) {
+    return (
+      <LoginPrompt
+        title="Sign in to approve & send"
+        description="Your complaint will be sent from your Gmail to the municipal authority."
+      />
+    )
+  }
   if (loading) return <p className="text-slate-500">Loading…</p>
   if (!petition) return <p className="text-red-600">Not found</p>
 
@@ -116,7 +128,12 @@ export function ApprovalDetailPage() {
       <h2 className="text-2xl font-bold text-civic-900 mb-2">
         {isEscalation ? 'Review Escalation Email' : 'Review Complaint Email'}
       </h2>
-      <p className="text-slate-600 mb-6">Human-in-the-loop: edit the AI draft before sending.</p>
+      <p className="text-slate-600 mb-6">
+        Human-in-the-loop: edit the AI draft before sending.
+        {user?.email && (
+          <span className="block text-sm mt-1 text-civic-700">From: <strong>{user.email}</strong> (your Gmail)</span>
+        )}
+      </p>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border p-4 space-y-3">

@@ -20,6 +20,7 @@ from app.services.authority_lookup import lookup_authority, merge_lemma_classifi
 from app.services.departments import DEPARTMENTS
 from app.services.email import send_email
 from app.services.geocoding import reverse_geocode
+from app.services.gmail import send_gmail_as_user
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,12 @@ async def get_activity(db: AsyncIOMotorDatabase, petition_id: str) -> list[dict]
     return [_serialize(doc) async for doc in cursor]
 
 
-async def create_and_process_petition(db: AsyncIOMotorDatabase, req: CreatePetitionRequest) -> dict:
+async def create_and_process_petition(
+    db: AsyncIOMotorDatabase,
+    req: CreatePetitionRequest,
+    *,
+    reporter: dict | None = None,
+) -> dict:
     now = datetime.now(timezone.utc)
     petition_id = _oid()
     area = await reverse_geocode(req.location.lat, req.location.lng)
@@ -112,6 +118,10 @@ async def create_and_process_petition(db: AsyncIOMotorDatabase, req: CreatePetit
         "created_at": now,
         "updated_at": now,
     }
+    if reporter:
+        doc["reporter_user_id"] = reporter["_id"]
+        doc["reporter_email"] = reporter.get("email", "")
+        doc["reporter_name"] = reporter.get("name", "")
     await db.petitions.insert_one(doc)
     await log_activity(db, petition_id, "created", f"Petition created — area: {area.display_name}")
 
@@ -204,7 +214,13 @@ async def create_and_process_petition(db: AsyncIOMotorDatabase, req: CreatePetit
     return (await get_petition(db, petition_id)) or {}
 
 
-async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: ApprovalRequest) -> dict:
+async def approve_and_send(
+    db: AsyncIOMotorDatabase,
+    petition_id: str,
+    req: ApprovalRequest,
+    *,
+    sender: dict | None = None,
+) -> dict:
     petition = await get_petition(db, petition_id)
     if not petition:
         raise ValueError("Petition not found")
@@ -217,7 +233,21 @@ async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: Appr
     sent = False
     send_message = ""
 
-    if lemma_service.is_lemma_available() and petition.get("lemma_powered"):
+    if sender and sender.get("google_refresh_token") and sender.get("email"):
+        try:
+            sent = await send_gmail_as_user(
+                refresh_token=sender["google_refresh_token"],
+                from_email=sender["email"],
+                to_email=to_email,
+                subject=req.subject,
+                body=req.body,
+            )
+            if sent:
+                send_message = f"Email sent from {sender['email']} via Gmail"
+        except Exception as exc:
+            logger.warning("Gmail send failed, trying fallbacks: %s", exc)
+
+    if not sent and lemma_service.is_lemma_available() and petition.get("lemma_powered"):
         try:
             result = await lemma_service.send_email_with_lemma(
                 petition_id=petition_id,
@@ -262,7 +292,7 @@ async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: Appr
             msg = f"{msg} — {send_message}"
 
     await db.petitions.update_one({"_id": petition_id}, {"$set": updates})
-    await log_activity(db, petition_id, event, msg, {"to": to_email, "smtp_sent": sent})
+    await log_activity(db, petition_id, event, msg, {"to": to_email, "smtp_sent": sent, "from": sender.get("email") if sender else settings.smtp_from})
 
     return (await get_petition(db, petition_id)) or {}
 

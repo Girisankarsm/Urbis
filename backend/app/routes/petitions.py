@@ -3,10 +3,11 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from app.config import settings
 from app.database import get_db
+from app.dependencies import get_current_user, get_optional_user
 from app.models import ApprovalRequest, CreatePetitionRequest, FollowUpRequest
 from app.services.petitions import (
     approve_and_send,
@@ -49,17 +50,25 @@ async def get_one(petition_id: str):
 
 
 @router.post("")
-async def create_petition(req: CreatePetitionRequest):
+async def create_petition(req: CreatePetitionRequest, user: dict | None = Depends(get_optional_user)):
+    if settings.google_auth_enabled and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
     db = get_db()
-    petition = await create_and_process_petition(db, req)
+    petition = await create_and_process_petition(db, req, reporter=user)
     return {"petition": petition, "message": "Petition created — review the drafted email for approval"}
 
 
 @router.post("/{petition_id}/approve")
-async def approve_petition(petition_id: str, req: ApprovalRequest):
+async def approve_petition(
+    petition_id: str,
+    req: ApprovalRequest,
+    user: dict | None = Depends(get_optional_user),
+):
+    if settings.google_auth_enabled and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
     db = get_db()
     try:
-        petition = await approve_and_send(db, petition_id, req)
+        petition = await approve_and_send(db, petition_id, req, sender=user)
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
     return {"petition": petition}
@@ -88,7 +97,9 @@ upload_router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 
 @upload_router.post("")
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...), user: dict | None = Depends(get_optional_user)):
+    if settings.google_auth_enabled and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(400, "Only image files are allowed")
 

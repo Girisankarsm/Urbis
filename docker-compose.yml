@@ -18,8 +18,8 @@ services:
     env_file:
       - .env
     environment:
-      # Override host-local .env values for the Docker network
-      MONGODB_URL: mongodb://mongodb:27017
+      # Use Atlas from .env when set; otherwise local Docker MongoDB
+      MONGODB_URL: ${MONGODB_URL:-mongodb://mongodb:27017}
       MONGODB_DB: urbis
       UPLOAD_DIR: /app/uploads
       LEMMA_TOKEN: ${LEMMA_TOKEN:-}
@@ -34,6 +34,7 @@ services:
       DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-municipal-demo@example.com}
       ESCALATION_DAYS: ${ESCALATION_DAYS:-3}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Google OAuth + session: loaded from env_file (.env) — do not override with empty defaults
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads

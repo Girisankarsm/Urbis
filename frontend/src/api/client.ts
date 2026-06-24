@@ -1,20 +1,45 @@
 import type { ActivityEvent, Petition } from '../types'
 
+export interface AuthUser {
+  id: string
+  email: string
+  name: string
+  picture?: string
+  can_send_gmail: boolean
+}
+
 const API = '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, options)
+  const res = await fetch(`${API}${path}`, {
+    credentials: 'include',
+    ...options,
+  })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail || 'Request failed')
+    const detail = err.detail
+    const message = typeof detail === 'string' ? detail : Array.isArray(detail) ? detail[0]?.msg : 'Request failed'
+    throw new Error(message || 'Request failed')
   }
   return res.json()
+}
+
+export async function fetchAuthStatus(): Promise<{ google_auth_enabled: boolean; login_url: string | null }> {
+  return request('/auth/status')
+}
+
+export async function fetchAuthMe(): Promise<AuthUser> {
+  return request('/auth/me')
+}
+
+export async function logout(): Promise<void> {
+  await request('/auth/logout', { method: 'POST' })
 }
 
 export async function uploadPhoto(file: File): Promise<string> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/api/uploads', { method: 'POST', body: form })
+  const res = await fetch('/api/uploads', { method: 'POST', body: form, credentials: 'include' })
   if (!res.ok) throw new Error('Upload failed')
   const data = await res.json()
   return data.url

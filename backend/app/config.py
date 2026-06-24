@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,9 +24,27 @@ class Settings(BaseSettings):
     escalation_days: int = 3
     openai_api_key: str = ""
 
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
+    frontend_url: str = "http://localhost:5173"
+    session_secret: str = "change-me-in-production"
+    cookie_secure: bool = False
+
+    @field_validator("cookie_secure", mode="before")
+    @classmethod
+    def parse_cookie_secure(cls, value: object) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes"}
+        return bool(value)
+
     @property
     def lemma_enabled(self) -> bool:
         return bool(self.lemma_token and self.lemma_pod_id)
+
+    @property
+    def google_auth_enabled(self) -> bool:
+        return bool(self.google_client_id and self.google_client_secret)
 
 
 settings = Settings()

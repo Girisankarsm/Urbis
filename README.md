@@ -102,7 +102,30 @@ After editing `.env`, reload env into Docker:
 docker compose up -d --force-recreate api
 ```
 
-Complaints are sent **to** the authority email found by geocoding (e.g. BBMP). `SMTP_FROM` is the verified sender account (Brevo/Gmail), not the citizen — per-user Gmail send requires Google OAuth (not yet implemented).
+Complaints are sent **to** the authority email found by geocoding (e.g. BBMP). With Google sign-in (below), approved emails send **from the citizen's Gmail**. Otherwise Brevo `SMTP_FROM` is used.
+
+## Google sign-in (optional)
+
+Citizens sign in with Google; approved complaints send **from their Gmail** via Gmail API (falls back to Brevo if needed).
+
+1. [Google Cloud Console](https://console.cloud.google.com) → create project
+2. Enable **Gmail API**
+3. **OAuth consent screen** → External → add your Gmail as a **test user**
+4. **Credentials** → OAuth 2.0 Client ID → Web application
+5. Authorized redirect URI: `http://localhost:8000/api/auth/google/callback`
+6. Add to `.env`:
+
+```
+GOOGLE_CLIENT_ID=....apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=http://localhost:8000/api/auth/google/callback
+FRONTEND_URL=http://localhost:5173
+SESSION_SECRET=long-random-string
+```
+
+7. `docker compose up -d --force-recreate api`
+
+Without Google OAuth, the app runs in open demo mode (Brevo sender). With OAuth, report & approve require sign-in.
 
 ## Project structure
 
@@ -116,6 +139,6 @@ Complaints are sent **to** the authority email found by geocoding (e.g. BBMP). `
 ## Hackathon demo tips
 
 - Seed departments are for **Metro City Municipal Corp** (generic fictional city)
-- Single demo user — no auth required
+- Optional **Google sign-in** — complaints send from the citizen's Gmail when configured
 - Escalation threshold: **3 days** (configurable via `ESCALATION_DAYS`)
 - Trigger escalation manually: `POST /api/petitions/escalation/check`

@@ -4,9 +4,11 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
 from app.database import close_db, connect_db
+from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
 from app.routes.petitions import upload_router
 from app.services.petitions import seed_departments
@@ -14,7 +16,10 @@ from app.services.petitions import seed_departments
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db()
+    try:
+        await connect_db()
+    except Exception as exc:
+        raise RuntimeError(f"MongoDB connection failed — check MONGODB_URL: {exc}") from exc
     from app.database import get_db
 
     await seed_departments(get_db())
@@ -32,12 +37,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[settings.frontend_url, "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 
+app.include_router(auth_router)
 app.include_router(petitions_router)
 app.include_router(upload_router)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
@@ -56,6 +63,7 @@ async def health():
             else ("smtp" if settings.smtp_host else "log_only")
         ),
         "authority_lookup": "geocoding + regional contacts" + (" + lemma agents" if settings.lemma_enabled else ""),
+        "google_auth_enabled": settings.google_auth_enabled,
     }
 
 
