@@ -22,7 +22,6 @@ export function Layout() {
             <NavLink to="/" active={location.pathname === '/'}>Dashboard</NavLink>
             <NavLink to="/new" active={location.pathname === '/new'}>Report Issue</NavLink>
             <NavLink to="/approvals" active={location.pathname.startsWith('/approvals')}>Approvals</NavLink>
-            {user && <NavLink to="/profile" active={location.pathname === '/profile'}>Profile</NavLink>}
             {!loading && googleEnabled && (
               user ? (
                 <UserMenu user={user} onLogout={logout} />

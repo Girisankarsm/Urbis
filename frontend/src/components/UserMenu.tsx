@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import type { AuthUser } from '../context/AuthContext'
 
@@ -9,10 +9,21 @@ function initials(user: AuthUser): string {
   return (user.email[0] ?? 'U').toUpperCase()
 }
 
+function ProfileIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 21a8 8 0 10-16 0" />
+      <circle cx="12" cy="8" r="4" />
+    </svg>
+  )
+}
+
 export function UserMenu({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
+  const onProfile = location.pathname === '/profile'
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -29,62 +40,68 @@ export function UserMenu({ user, onLogout }: { user: AuthUser; onLogout: () => v
   }
 
   return (
-    <div className="relative ml-1 sm:ml-2 pl-1 sm:pl-2 border-l border-civic-700/80 shrink-0" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-civic-800/80 transition-colors"
-        aria-expanded={open}
-        aria-haspopup="menu"
-      >
+    <div
+      className="relative ml-2 pl-2 border-l border-civic-700/80 flex items-center gap-2 shrink-0"
+      ref={ref}
+    >
+      {/* Avatar + Google account */}
+      <div className="flex items-center gap-2 min-w-0">
         {user.picture ? (
-          <img src={user.picture} alt="" className="w-8 h-8 rounded-full ring-2 ring-civic-600 object-cover" />
+          <img src={user.picture} alt="" className="w-8 h-8 rounded-full ring-2 ring-civic-600 object-cover shrink-0" />
         ) : (
-          <span className="w-8 h-8 rounded-full bg-civic-600 ring-2 ring-civic-500 flex items-center justify-center text-xs font-semibold">
+          <span className="w-8 h-8 rounded-full bg-gradient-to-br from-civic-500 to-civic-700 ring-2 ring-civic-600 flex items-center justify-center text-xs font-semibold shrink-0">
             {initials(user)}
           </span>
         )}
-        <span className="hidden md:block text-left max-w-[120px]">
-          <span className="block text-sm font-medium truncate">{user.name || 'Citizen'}</span>
-          <span className="block text-[10px] text-civic-200 truncate">{user.email}</span>
+        <span className="hidden lg:block min-w-0 max-w-[150px]">
+          <span className="block text-sm font-medium truncate leading-tight">{user.name || 'Citizen'}</span>
+          <span className="block text-[10px] text-civic-200 truncate leading-tight">{user.email}</span>
         </span>
-        <svg className={`w-4 h-4 text-civic-200 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      </div>
+
+      {/* Single profile button */}
+      <Link
+        to="/profile"
+        title="My profile"
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors shrink-0 ${
+          onProfile
+            ? 'bg-civic-700 text-white'
+            : 'text-civic-100 hover:bg-civic-800 hover:text-white'
+        }`}
+      >
+        <ProfileIcon className="w-4 h-4" />
+        <span className="hidden sm:inline">Profile</span>
+      </Link>
+
+      {/* Account menu — sign out only */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="p-1.5 rounded-lg text-civic-200 hover:bg-civic-800 hover:text-white transition-colors"
+        aria-label="Account menu"
+        aria-expanded={open}
+      >
+        <svg className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
         </svg>
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white text-slate-800 shadow-xl border border-slate-100 py-1 z-50"
+          className="absolute right-0 top-full mt-2 w-52 rounded-xl bg-white text-slate-800 shadow-xl border border-slate-100 py-1 z-50"
           role="menu"
         >
-          <div className="px-4 py-3 border-b border-slate-100">
+          <div className="px-4 py-3 border-b border-slate-100 lg:hidden">
             <p className="font-semibold text-sm truncate">{user.name || 'Citizen'}</p>
             <p className="text-xs text-slate-500 truncate">{user.email}</p>
           </div>
-          <Link
-            to="/profile"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-slate-50"
-            role="menuitem"
-          >
-            <span>👤</span> Profile
-          </Link>
-          <Link
-            to="/new"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-slate-50"
-            role="menuitem"
-          >
-            <span>📸</span> Report Issue
-          </Link>
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 border-t border-slate-100 mt-1"
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
             role="menuitem"
           >
-            <span>↩</span> Sign out
+            Sign out
           </button>
         </div>
       )}
