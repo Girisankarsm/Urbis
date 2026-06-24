@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     mongodb_url: str = "mongodb://localhost:27017"
-    mongodb_db: str = "civiclens"
+    mongodb_db: str = "urbis"
     upload_dir: str = "uploads"
     api_base_url: str = "http://localhost:8000"
 
@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
-    smtp_from: str = "civiclens@demo.local"
+    smtp_from: str = "urbis@demo.local"
     demo_email_to: str = "municipal-demo@example.com"
     escalation_days: int = 3
     openai_api_key: str = ""

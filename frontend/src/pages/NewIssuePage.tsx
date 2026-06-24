@@ -52,7 +52,7 @@ export function NewIssuePage() {
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-civic-900 mb-2">Report a Civic Issue</h2>
       <p className="text-slate-600 mb-6">
-        Photograph the problem, pin the location, and CivicLens will route your complaint to the right department.
+        Photograph the problem, pin the location, and Urbis will route your complaint to the right department.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6 bg-white rounded-2xl shadow-sm border p-6">

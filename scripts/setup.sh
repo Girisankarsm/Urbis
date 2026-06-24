@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# CivicLens one-time setup + start script
+# Urbis one-time setup + start script
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-echo "==> CivicLens setup"
+echo "==> Urbis setup"
 
 # 1. Environment
 if [ ! -f .env ]; then

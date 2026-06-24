@@ -8,7 +8,7 @@ export function Layout() {
           <Link to="/" className="flex items-center gap-3 hover:opacity-90">
             <span className="text-2xl">🏛️</span>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">CivicLens</h1>
+              <h1 className="text-xl font-bold tracking-tight">Urbis</h1>
               <p className="text-xs text-civic-100">Metro City Municipal Corp</p>
             </div>
           </Link>
@@ -23,7 +23,7 @@ export function Layout() {
         <Outlet />
       </main>
       <footer className="border-t bg-white py-4 text-center text-sm text-slate-500">
-        CivicLens · Gappy AI Hackathon · Powered by Lemma SDK
+        Urbis · Gappy AI Hackathon · Powered by Lemma SDK
       </footer>
     </div>
   )

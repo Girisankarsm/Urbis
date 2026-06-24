@@ -24,7 +24,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CivicLens API",
+    title="Urbis API",
     description="Citizen civic-issue reporting with Lemma agentic infrastructure",
     version="0.1.0",
     lifespan=lifespan,

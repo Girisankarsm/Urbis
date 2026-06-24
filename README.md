@@ -1,8 +1,8 @@
-# CivicLens
+# Urbis
 
 **Report civic issues. Route to the right department. Track resolution.**
 
-CivicLens lets citizens photograph potholes, garbage, broken streetlights, and other civic issues, automatically classifies them, drafts formal complaint emails, and tracks resolution over time.
+Urbis lets citizens photograph potholes, garbage, broken streetlights, and other civic issues, automatically classifies them, drafts formal complaint emails, and tracks resolution over time.
 
 Built for the [Gappy AI Hackathon](https://gappy.ai) using **Lemma SDK** as the agentic infrastructure layer.
 

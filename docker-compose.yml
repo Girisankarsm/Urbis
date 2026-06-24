@@ -17,7 +17,7 @@ services:
       - "8000:8000"
     environment:
       MONGODB_URL: mongodb://mongodb:27017
-      MONGODB_DB: civiclens
+      MONGODB_DB: urbis
       UPLOAD_DIR: /app/uploads
       LEMMA_TOKEN: ${LEMMA_TOKEN:-}
       LEMMA_POD_ID: ${LEMMA_POD_ID:-}
@@ -27,7 +27,7 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      SMTP_FROM: ${SMTP_FROM:-civiclens@demo.local}
+      SMTP_FROM: ${SMTP_FROM:-urbis@demo.local}
       DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-municipal-demo@example.com}
       ESCALATION_DAYS: ${ESCALATION_DAYS:-3}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
