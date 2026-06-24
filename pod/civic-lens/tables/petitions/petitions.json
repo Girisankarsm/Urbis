@@ -1,0 +1,35 @@
+{
+  "name": "petitions",
+  "primary_key_column": "id",
+  "enable_rls": false,
+  "columns": [
+    {
+      "name": "issue_type",
+      "type": "ENUM",
+      "options": ["pothole", "garbage", "streetlight", "water_leak", "sewage", "other"],
+      "description": "Classified civic issue type"
+    },
+    { "name": "photo_url", "type": "TEXT", "max_length": 500 },
+    { "name": "follow_up_photo_url", "type": "TEXT", "max_length": 500 },
+    { "name": "location", "type": "JSON", "required": true, "description": "{address, lat, lng}" },
+    { "name": "description", "type": "TEXT", "max_length": 2000 },
+    { "name": "department", "type": "TEXT", "max_length": 120 },
+    { "name": "department_email", "type": "TEXT", "max_length": 240 },
+    {
+      "name": "status",
+      "type": "ENUM",
+      "required": true,
+      "default": "draft",
+      "options": ["draft", "submitted", "under_review", "resolved", "escalated"]
+    },
+    { "name": "complaint_email_draft", "type": "TEXT", "max_length": 8000 },
+    { "name": "complaint_email_subject", "type": "TEXT", "max_length": 300 },
+    { "name": "escalation_email_draft", "type": "TEXT", "max_length": 8000 },
+    { "name": "resolution_verdict", "type": "JSON", "description": "Agent output from before/after comparison" },
+    { "name": "workflow_run_id", "type": "UUID" },
+    { "name": "submitted_at", "type": "DATETIME" },
+    { "name": "resolved_at", "type": "DATETIME" },
+    { "name": "escalated_at", "type": "DATETIME" }
+  ],
+  "config": {}
+}

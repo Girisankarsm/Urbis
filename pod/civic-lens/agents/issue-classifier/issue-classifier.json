@@ -1,0 +1,30 @@
+{
+  "name": "issue-classifier",
+  "description": "Classifies civic issue photos and descriptions, routes to the correct municipal department",
+  "instruction": { "$file": "instruction.md" },
+  "toolsets": ["POD"],
+  "permissions": {
+    "grants": [
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "departments",
+        "permission_ids": ["datastore.table.read", "datastore.record.read"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "petitions",
+        "permission_ids": ["datastore.table.read", "datastore.record.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "activity_log",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "file_folder",
+        "resource_name": "/knowledge",
+        "permission_ids": ["file.folder.read", "file.search"]
+      }
+    ]
+  }
+}

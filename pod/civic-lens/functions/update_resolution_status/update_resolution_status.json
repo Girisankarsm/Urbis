@@ -1,0 +1,20 @@
+{
+  "name": "update_resolution_status",
+  "description": "Updates petition status based on resolution-checker agent output",
+  "type": "API",
+  "code": { "$file": "code.py" },
+  "permissions": {
+    "grants": [
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "petitions",
+        "permission_ids": ["datastore.table.read", "datastore.record.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "activity_log",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      }
+    ]
+  }
+}

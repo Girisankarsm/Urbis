@@ -1,0 +1,10 @@
+{
+  "name": "daily-resolution-check",
+  "description": "Daily cron: find petitions unresolved after 3 days and trigger escalation workflow",
+  "schedule_type": "TIME",
+  "config": {
+    "cron": "0 9 * * *"
+  },
+  "workflow_name": "escalation-pipeline",
+  "is_active": true
+}

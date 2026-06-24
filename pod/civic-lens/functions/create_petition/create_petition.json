@@ -1,0 +1,20 @@
+{
+  "name": "create_petition",
+  "description": "Creates a new petition record and logs the creation event",
+  "type": "API",
+  "code": { "$file": "code.py" },
+  "permissions": {
+    "grants": [
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "petitions",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "activity_log",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      }
+    ]
+  }
+}

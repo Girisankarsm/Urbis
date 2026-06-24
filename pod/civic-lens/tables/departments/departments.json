@@ -1,0 +1,17 @@
+{
+  "name": "departments",
+  "primary_key_column": "id",
+  "enable_rls": false,
+  "columns": [
+    { "name": "name", "type": "TEXT", "required": true, "max_length": 120 },
+    {
+      "name": "issue_types",
+      "type": "JSON",
+      "required": true,
+      "description": "Array of issue type slugs this department handles"
+    },
+    { "name": "contact_email", "type": "TEXT", "required": true, "max_length": 240 },
+    { "name": "jurisdiction_area", "type": "TEXT", "required": true, "max_length": 240 }
+  ],
+  "config": {}
+}

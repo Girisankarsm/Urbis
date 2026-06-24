@@ -1,0 +1,20 @@
+{
+  "name": "complaint-drafter",
+  "description": "Drafts formal citizen complaint emails to municipal departments",
+  "instruction": { "$file": "instruction.md" },
+  "toolsets": ["POD"],
+  "permissions": {
+    "grants": [
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "petitions",
+        "permission_ids": ["datastore.table.read", "datastore.record.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "activity_log",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      }
+    ]
+  }
+}

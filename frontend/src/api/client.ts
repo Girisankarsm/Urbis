@@ -1,0 +1,72 @@
+import type { ActivityEvent, Petition } from '../types'
+
+const API = '/api'
+
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${API}${path}`, options)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail || 'Request failed')
+  }
+  return res.json()
+}
+
+export async function uploadPhoto(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch('/api/uploads', { method: 'POST', body: form })
+  if (!res.ok) throw new Error('Upload failed')
+  const data = await res.json()
+  return data.url
+}
+
+export async function listPetitions(status?: string): Promise<Petition[]> {
+  const q = status ? `?status=${status}` : ''
+  return request<Petition[]>(`/petitions${q}`)
+}
+
+export async function getPetition(id: string): Promise<{ petition: Petition; activity: ActivityEvent[] }> {
+  return request(`/petitions/${id}`)
+}
+
+export async function createPetition(data: {
+  photo_url: string
+  location: { address: string; lat: number; lng: number }
+  description: string
+}): Promise<{ petition: Petition }> {
+  return request('/petitions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function approvePetition(
+  id: string,
+  data: { subject: string; body: string; approved: boolean; is_escalation?: boolean },
+): Promise<{ petition: Petition }> {
+  return request(`/petitions/${id}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function uploadFollowUp(id: string, follow_up_photo_url: string): Promise<{ petition: Petition }> {
+  return request(`/petitions/${id}/follow-up`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ follow_up_photo_url }),
+  })
+}
+
+export async function checkEscalation(): Promise<{ petition: Petition | null; message: string }> {
+  return request('/petitions/escalation/check', { method: 'POST' })
+}
+
+export async function getPendingApprovals(): Promise<{
+  complaints: Petition[]
+  escalations: Petition[]
+}> {
+  return request('/petitions/pending-approvals')
+}

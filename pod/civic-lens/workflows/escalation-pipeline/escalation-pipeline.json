@@ -1,0 +1,69 @@
+{
+  "name": "escalation-pipeline",
+  "description": "Draft escalation for stale petitions → human approval → send",
+  "start": { "type": "MANUAL" },
+  "nodes": [
+    {
+      "id": "escalate",
+      "type": "FUNCTION",
+      "label": "Find stale petition & draft escalation",
+      "config": {
+        "function_name": "escalate_petition",
+        "input_mapping": {}
+      }
+    },
+    {
+      "id": "escalation_approval",
+      "type": "FORM",
+      "label": "Review escalation email",
+      "config": {
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "subject": {
+              "type": "string",
+              "title": "Subject",
+              "default": { "type": "expression", "value": "escalate.subject", "optional": true }
+            },
+            "body": {
+              "type": "string",
+              "title": "Body",
+              "default": { "type": "expression", "value": "escalate.body", "optional": true }
+            },
+            "approved": { "type": "boolean", "title": "Send escalation?" }
+          },
+          "required": ["approved"]
+        },
+        "ui_schema": {
+          "body": { "ui:widget": "textarea", "ui:options": { "rows": 12 } }
+        }
+      }
+    },
+    {
+      "id": "send_escalation",
+      "type": "FUNCTION",
+      "label": "Send escalation email",
+      "config": {
+        "function_name": "send_complaint_email",
+        "input_mapping": {
+          "petition_id": { "type": "expression", "value": "escalate.petition_id" },
+          "subject": { "type": "expression", "value": "escalation_approval.subject" },
+          "body": { "type": "expression", "value": "escalation_approval.body" },
+          "approved": { "type": "expression", "value": "escalation_approval.approved" },
+          "to_email": { "type": "expression", "value": "escalate.to_email", "optional": true },
+          "is_escalation": { "type": "literal", "value": true }
+        }
+      }
+    },
+    {
+      "id": "end",
+      "type": "END",
+      "label": "Done"
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "escalate", "target": "escalation_approval" },
+    { "id": "e2", "source": "escalation_approval", "target": "send_escalation" },
+    { "id": "e3", "source": "send_escalation", "target": "end" }
+  ]
+}

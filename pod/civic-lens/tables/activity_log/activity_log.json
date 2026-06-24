@@ -1,0 +1,33 @@
+{
+  "name": "activity_log",
+  "primary_key_column": "id",
+  "enable_rls": false,
+  "columns": [
+    {
+      "name": "petition_id",
+      "type": "UUID",
+      "required": true,
+      "foreign_key": { "references": "petitions.id" }
+    },
+    {
+      "name": "event_type",
+      "type": "ENUM",
+      "required": true,
+      "options": [
+        "created",
+        "classified",
+        "drafted",
+        "approval_pending",
+        "email_sent",
+        "escalation_pending",
+        "escalation_sent",
+        "follow_up_uploaded",
+        "resolution_checked",
+        "status_changed"
+      ]
+    },
+    { "name": "message", "type": "TEXT", "max_length": 2000 },
+    { "name": "metadata", "type": "JSON" }
+  ],
+  "config": {}
+}

@@ -1,0 +1,44 @@
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongodb:27017
+      MONGODB_DB: civiclens
+      UPLOAD_DIR: /app/uploads
+      LEMMA_TOKEN: ${LEMMA_TOKEN:-}
+      LEMMA_POD_ID: ${LEMMA_POD_ID:-}
+      LEMMA_ORG_ID: ${LEMMA_ORG_ID:-}
+      LEMMA_BASE_URL: ${LEMMA_BASE_URL:-https://api.lemma.work}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-civiclens@demo.local}
+      DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-municipal-demo@example.com}
+      ESCALATION_DAYS: ${ESCALATION_DAYS:-3}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    volumes:
+      - ./backend:/app
+      - uploads_data:/app/uploads
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mongo_data:
+  uploads_data:

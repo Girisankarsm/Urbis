@@ -1,0 +1,20 @@
+{
+  "name": "resolution-checker",
+  "description": "Compares before/after photos to determine if a civic issue appears resolved",
+  "instruction": { "$file": "instruction.md" },
+  "toolsets": ["POD"],
+  "permissions": {
+    "grants": [
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "petitions",
+        "permission_ids": ["datastore.table.read", "datastore.record.read", "datastore.record.write"]
+      },
+      {
+        "resource_type": "datastore_table",
+        "resource_name": "activity_log",
+        "permission_ids": ["datastore.table.read", "datastore.record.write"]
+      }
+    ]
+  }
+}

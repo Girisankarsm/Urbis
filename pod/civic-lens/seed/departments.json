@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Roads & Infrastructure Department",
+    "issue_types": ["pothole", "road_damage", "sidewalk", "other"],
+    "contact_email": "roads@mcmc-demo.gov",
+    "jurisdiction_area": "All public roads and sidewalks in Metro City"
+  },
+  {
+    "name": "Sanitation & Waste Management Department",
+    "issue_types": ["garbage", "illegal_dumping", "overflowing_bin"],
+    "contact_email": "sanitation@mcmc-demo.gov",
+    "jurisdiction_area": "Waste collection and street cleaning in Metro City"
+  },
+  {
+    "name": "Electrical & Street Lighting Department",
+    "issue_types": ["streetlight", "broken_light", "electrical_hazard"],
+    "contact_email": "electrical@mcmc-demo.gov",
+    "jurisdiction_area": "Public lighting and electrical infrastructure"
+  },
+  {
+    "name": "Water Supply Department",
+    "issue_types": ["water_leak", "burst_pipe", "water_quality"],
+    "contact_email": "water@mcmc-demo.gov",
+    "jurisdiction_area": "Public water supply mains and hydrants"
+  },
+  {
+    "name": "Sewerage & Drainage Department",
+    "issue_types": ["sewage", "blocked_drain", "manhole", "flooding"],
+    "contact_email": "sewerage@mcmc-demo.gov",
+    "jurisdiction_area": "Sewer lines, drains, and manholes"
+  }
+]
