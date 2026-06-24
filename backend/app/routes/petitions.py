@@ -1,13 +1,8 @@
-import os
-import uuid
-from pathlib import Path
-
-import aiofiles
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import settings
 from app.database import get_db
-from app.dependencies import get_current_user, get_optional_user
+from app.dependencies import get_optional_user
 from app.models import ApprovalRequest, CreatePetitionRequest, FollowUpRequest
 from app.services.petitions import (
     approve_and_send,
@@ -99,28 +94,3 @@ async def check_escalation():
     if not result:
         return {"message": "No stale petitions found", "petition": None}
     return {"petition": result, "message": "Escalation draft ready for approval"}
-
-
-upload_router = APIRouter(prefix="/api/uploads", tags=["uploads"])
-
-
-@upload_router.post("")
-async def upload_image(file: UploadFile = File(...), user: dict | None = Depends(get_optional_user)):
-    if settings.google_auth_enabled and not user:
-        raise HTTPException(401, "Sign in with Google to continue")
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(400, "Only image files are allowed")
-
-    upload_dir = Path(settings.upload_dir)
-    upload_dir.mkdir(parents=True, exist_ok=True)
-
-    ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
-    filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = upload_dir / filename
-
-    content = await file.read()
-    async with aiofiles.open(filepath, "wb") as f:
-        await f.write(content)
-
-    url = f"/uploads/{filename}"
-    return {"url": url, "filename": filename}

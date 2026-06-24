@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import close_db, connect_db
 from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
-from app.routes.petitions import upload_router
+from app.routes.uploads import upload_router
 from app.services.petitions import seed_departments
 
 
@@ -64,6 +64,8 @@ async def health():
         ),
         "authority_lookup": "geocoding + regional contacts" + (" + lemma agents" if settings.lemma_enabled else ""),
         "google_auth_enabled": settings.google_auth_enabled,
+        "cloudinary_configured": settings.cloudinary_enabled,
+        "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
     }
 
 

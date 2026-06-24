@@ -127,6 +127,24 @@ SESSION_SECRET=long-random-string
 
 Without Google OAuth, the app runs in open demo mode (Brevo sender). With OAuth, report & approve require sign-in.
 
+## Image storage (Cloudinary)
+
+Issue photos and follow-up images upload to **Cloudinary** when configured; otherwise they save to local `uploads/` (lost on redeploy).
+
+1. Create a free account at [cloudinary.com](https://cloudinary.com)
+2. Copy **Cloud name**, **API Key**, **API Secret** from the dashboard
+3. Add to `.env`:
+
+```
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+CLOUDINARY_FOLDER=urbis
+```
+
+4. `docker compose build api && docker compose up -d --force-recreate api`
+5. Verify: `curl http://localhost:8000/api/health` → `"cloudinary_configured": true`
+
 ## Project structure
 
 ```

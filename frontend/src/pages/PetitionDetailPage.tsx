@@ -43,7 +43,7 @@ export function PetitionDetailPage() {
     if (!file || !id) return
     setUploading(true)
     try {
-      const url = await uploadPhoto(file)
+      const url = await uploadPhoto(file, 'follow-up')
       const { petition: updated } = await uploadFollowUp(id, url)
       setPetition(updated)
       load()

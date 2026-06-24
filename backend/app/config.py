@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     upload_dir: str = "uploads"
     api_base_url: str = "http://localhost:8000"
 
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
+    cloudinary_folder: str = "urbis"
+
     lemma_token: str = ""
     lemma_pod_id: str = ""
     lemma_org_id: str = ""
@@ -45,6 +50,14 @@ class Settings(BaseSettings):
     @property
     def google_auth_enabled(self) -> bool:
         return bool(self.google_client_id and self.google_client_secret)
+
+    @property
+    def cloudinary_enabled(self) -> bool:
+        return bool(
+            self.cloudinary_cloud_name
+            and self.cloudinary_api_key
+            and self.cloudinary_api_secret
+        )
 
 
 settings = Settings()

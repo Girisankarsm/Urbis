@@ -36,10 +36,11 @@ export async function logout(): Promise<void> {
   await request('/auth/logout', { method: 'POST' })
 }
 
-export async function uploadPhoto(file: File): Promise<string> {
+export async function uploadPhoto(file: File, kind: 'petitions' | 'follow-up' = 'petitions'): Promise<string> {
   const form = new FormData()
   form.append('file', file)
-  const res = await fetch('/api/uploads', { method: 'POST', body: form, credentials: 'include' })
+  const query = kind === 'follow-up' ? '?kind=follow-up' : ''
+  const res = await fetch(`/api/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
   if (!res.ok) throw new Error('Upload failed')
   const data = await res.json()
   return data.url
