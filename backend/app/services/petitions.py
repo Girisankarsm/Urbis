@@ -64,10 +64,16 @@ async def log_activity(
     )
 
 
-async def list_petitions(db: AsyncIOMotorDatabase, status: str | None = None) -> list[dict]:
+async def list_petitions(
+    db: AsyncIOMotorDatabase,
+    status: str | None = None,
+    reporter_user_id: str | None = None,
+) -> list[dict]:
     query: dict = {}
     if status:
         query["status"] = status
+    if reporter_user_id:
+        query["reporter_user_id"] = reporter_user_id
     cursor = db.petitions.find(query).sort("created_at", -1)
     return [_serialize(doc) async for doc in cursor]
 

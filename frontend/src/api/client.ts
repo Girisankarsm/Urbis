@@ -46,8 +46,16 @@ export async function uploadPhoto(file: File): Promise<string> {
 }
 
 export async function listPetitions(status?: string): Promise<Petition[]> {
-  const q = status ? `?status=${status}` : ''
-  return request<Petition[]>(`/petitions${q}`)
+  const q = new URLSearchParams()
+  if (status) q.set('status', status)
+  const query = q.toString()
+  return request<Petition[]>(`/petitions${query ? `?${query}` : ''}`)
+}
+
+export async function listMyPetitions(status?: string): Promise<Petition[]> {
+  const q = new URLSearchParams({ mine: 'true' })
+  if (status) q.set('status', status)
+  return request<Petition[]>(`/petitions?${q}`)
 }
 
 export async function getPetition(id: string): Promise<{ petition: Petition; activity: ActivityEvent[] }> {

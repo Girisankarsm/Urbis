@@ -23,8 +23,16 @@ router = APIRouter(prefix="/api/petitions", tags=["petitions"])
 
 
 @router.get("")
-async def get_petitions(status: str | None = Query(None)):
+async def get_petitions(
+    status: str | None = Query(None),
+    mine: bool = Query(False),
+    user: dict | None = Depends(get_optional_user),
+):
     db = get_db()
+    if mine:
+        if not user:
+            raise HTTPException(401, "Sign in with Google to continue")
+        return await list_petitions(db, status, reporter_user_id=user["_id"])
     return await list_petitions(db, status)
 
 
