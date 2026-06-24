@@ -76,6 +76,6 @@ async def setup_status():
             "backend/.venv/bin/lemma pods create urbis --org <org>",
             "backend/.venv/bin/lemma pods import ./pod/civic-lens",
             "Set LEMMA_TOKEN, LEMMA_POD_ID, LEMMA_ORG_ID in .env",
-            "docker compose restart api",
+            "docker compose up -d --force-recreate api",
         ],
     }
