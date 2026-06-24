@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
@@ -7,17 +8,20 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import settings
 from app.models import (
-    ActivityEvent,
     ApprovalRequest,
-    ClassificationResult,
     CreatePetitionRequest,
     EmailDraft,
     PetitionStatus,
     ResolutionVerdict,
 )
-from app.services.ai import check_resolution, classify_issue, draft_complaint_email, draft_escalation_email
+from app.services import lemma_service
+from app.services.ai import check_resolution, draft_complaint_email, draft_escalation_email
+from app.services.authority_lookup import lookup_authority, merge_lemma_classification
 from app.services.departments import DEPARTMENTS
 from app.services.email import send_email
+from app.services.geocoding import reverse_geocode
+
+logger = logging.getLogger(__name__)
 
 
 def _oid() -> str:
@@ -85,38 +89,75 @@ async def get_activity(db: AsyncIOMotorDatabase, petition_id: str) -> list[dict]
 async def create_and_process_petition(db: AsyncIOMotorDatabase, req: CreatePetitionRequest) -> dict:
     now = datetime.now(timezone.utc)
     petition_id = _oid()
+    area = await reverse_geocode(req.location.lat, req.location.lng)
+    lemma_powered = False
+
+    if not req.location.address and area.display_name:
+        req.location.address = area.display_name
 
     doc = {
         "_id": petition_id,
         "photo_url": req.photo_url,
         "location": req.location.model_dump(),
         "description": req.description,
+        "area_info": {
+            "display_name": area.display_name,
+            "city": area.city,
+            "municipality": area.municipality,
+            "state": area.state,
+            "country": area.country,
+        },
         "status": PetitionStatus.DRAFT.value,
+        "lemma_powered": False,
         "created_at": now,
         "updated_at": now,
     }
     await db.petitions.insert_one(doc)
-    await log_activity(db, petition_id, "created", "Petition created from citizen report")
+    await log_activity(db, petition_id, "created", f"Petition created — area: {area.display_name}")
 
-    classification = classify_issue(req.description, req.location)
-    await db.petitions.update_one(
-        {"_id": petition_id},
-        {
-            "$set": {
-                "issue_type": classification.issue_type,
-                "department": classification.department,
-                "department_email": classification.department_email,
-                "updated_at": datetime.now(timezone.utc),
-            }
-        },
-    )
-    await log_activity(
-        db,
-        petition_id,
-        "classified",
-        classification.reasoning,
-        classification.model_dump(),
-    )
+    classification = lookup_authority(area, req.description)
+
+    if lemma_service.is_lemma_available():
+        try:
+            lemma_powered = True
+            lemma_class = await lemma_service.classify_with_lemma(
+                petition_id=petition_id,
+                photo_url=req.photo_url,
+                description=req.description,
+                lat=req.location.lat,
+                lng=req.location.lng,
+                address=req.location.address,
+                area_display=area.display_name,
+                city=area.city,
+                municipality=area.municipality,
+                state=area.state,
+                country=area.country,
+            )
+            classification = merge_lemma_classification(lemma_class, area, req.description)
+            await log_activity(
+                db,
+                petition_id,
+                "classified",
+                f"[Lemma agent] {classification.reasoning}",
+                {**classification.model_dump(), "lemma": True},
+            )
+        except Exception as exc:
+            logger.warning("Lemma classifier failed, using local authority lookup: %s", exc)
+            await log_activity(
+                db,
+                petition_id,
+                "classified",
+                f"[Fallback] {classification.reasoning}",
+                classification.model_dump(),
+            )
+    else:
+        await log_activity(
+            db,
+            petition_id,
+            "classified",
+            classification.reasoning,
+            classification.model_dump(),
+        )
 
     draft = draft_complaint_email(
         classification.issue_type,
@@ -125,18 +166,39 @@ async def create_and_process_petition(db: AsyncIOMotorDatabase, req: CreatePetit
         req.location,
         req.description,
         req.photo_url,
+        area_display=area.display_name,
+        city=area.city,
     )
+
+    if lemma_service.is_lemma_available():
+        try:
+            lemma_draft = await lemma_service.draft_email_with_lemma(petition_id=petition_id)
+            if lemma_draft.get("subject") and lemma_draft.get("body"):
+                draft = EmailDraft(
+                    subject=lemma_draft["subject"],
+                    body=lemma_draft["body"],
+                    to_email=lemma_draft.get("to_email") or classification.department_email,
+                )
+                lemma_powered = True
+        except Exception as exc:
+            logger.warning("Lemma drafter failed, using local draft: %s", exc)
+
     await db.petitions.update_one(
         {"_id": petition_id},
         {
             "$set": {
+                "issue_type": classification.issue_type,
+                "department": classification.department,
+                "department_email": classification.department_email,
+                "classification_confidence": classification.confidence,
                 "complaint_email_subject": draft.subject,
                 "complaint_email_draft": draft.body,
+                "lemma_powered": lemma_powered,
                 "updated_at": datetime.now(timezone.utc),
             }
         },
     )
-    await log_activity(db, petition_id, "drafted", "Complaint email drafted by AI")
+    await log_activity(db, petition_id, "drafted", f"Complaint email drafted for {classification.department_email}")
     await log_activity(db, petition_id, "approval_pending", "Awaiting citizen approval")
 
     return (await get_petition(db, petition_id)) or {}
@@ -152,7 +214,27 @@ async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: Appr
         return petition
 
     to_email = petition.get("department_email") or settings.demo_email_to
-    sent = send_email(to_email, req.subject, req.body)
+    sent = False
+    send_message = ""
+
+    if lemma_service.is_lemma_available() and petition.get("lemma_powered"):
+        try:
+            result = await lemma_service.send_email_with_lemma(
+                petition_id=petition_id,
+                subject=req.subject,
+                body=req.body,
+                to_email=to_email,
+                approved=True,
+                is_escalation=req.is_escalation,
+            )
+            sent = bool(result.get("email_sent"))
+            send_message = result.get("message", "")
+        except Exception as exc:
+            logger.warning("Lemma send failed, falling back to SMTP: %s", exc)
+
+    if not sent:
+        sent = send_email(to_email, req.subject, req.body)
+        send_message = "Email sent via SMTP" if sent else "Email logged (configure SMTP in .env)"
     now = datetime.now(timezone.utc)
 
     if req.is_escalation:
@@ -164,6 +246,8 @@ async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: Appr
         }
         event = "escalation_sent"
         msg = f"Escalation email {'sent' if sent else 'logged (demo)'} to {to_email}"
+        if send_message:
+            msg = f"{msg} — {send_message}"
     else:
         updates = {
             "complaint_email_subject": req.subject,
@@ -174,6 +258,8 @@ async def approve_and_send(db: AsyncIOMotorDatabase, petition_id: str, req: Appr
         }
         event = "email_sent"
         msg = f"Complaint email {'sent' if sent else 'logged (demo)'} to {to_email}"
+        if send_message:
+            msg = f"{msg} — {send_message}"
 
     await db.petitions.update_one({"_id": petition_id}, {"$set": updates})
     await log_activity(db, petition_id, event, msg, {"to": to_email, "smtp_sent": sent})

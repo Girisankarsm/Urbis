@@ -20,6 +20,14 @@ export interface Petition {
   description?: string
   department?: string
   department_email?: string
+  area_info?: {
+    display_name?: string
+    city?: string
+    municipality?: string
+    state?: string
+    country?: string
+  }
+  lemma_powered?: boolean
   status: PetitionStatus
   complaint_email_draft?: string
   complaint_email_subject?: string

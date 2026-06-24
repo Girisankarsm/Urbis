@@ -41,15 +41,19 @@ def draft_complaint_email(
     location: Location,
     description: str,
     photo_url: str,
+    *,
+    area_display: str = "",
+    city: str = "",
 ) -> EmailDraft:
     today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     issue_label = issue_type.replace("_", " ").title()
-    address = location.address or f"coordinates {location.lat:.5f}, {location.lng:.5f}"
+    address = location.address or area_display or f"coordinates {location.lat:.5f}, {location.lng:.5f}"
+    jurisdiction = city or area_display or "the local municipal jurisdiction"
 
     subject = f"Citizen Complaint: {issue_label} at {address}"
     body = f"""Dear {department} Team,
 
-I am writing to formally report a civic issue within Metro City Municipal Corporation jurisdiction.
+I am writing to formally report a civic issue within {jurisdiction}.
 
 Issue Type: {issue_label}
 Location: {address}
@@ -68,7 +72,7 @@ This matter affects public safety and quality of life in our community. I would 
 
 Thank you for your attention to this matter.
 
-A concerned citizen of Metro City
+A concerned citizen
 """
 
     return EmailDraft(subject=subject, body=body, to_email=department_email)

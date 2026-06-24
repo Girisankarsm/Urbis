@@ -2,7 +2,7 @@
   "name": "issue-classifier",
   "description": "Classifies civic issue photos and descriptions, routes to the correct municipal department",
   "instruction": { "$file": "instruction.md" },
-  "toolsets": ["POD"],
+  "toolsets": ["POD", "WEB_SEARCH"],
   "permissions": {
     "grants": [
       {

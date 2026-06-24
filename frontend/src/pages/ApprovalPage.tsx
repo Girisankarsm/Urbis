@@ -122,11 +122,17 @@ export function ApprovalDetailPage() {
         <div className="bg-white rounded-2xl border p-4 space-y-3">
           <h3 className="font-semibold">Issue Evidence</h3>
           <img src={petition.photo_url} alt="Issue" className="w-full rounded-xl" />
-          <dl className="text-sm space-y-1">
+            <dl className="text-sm space-y-1">
             <div><dt className="text-slate-500 inline">Type: </dt><dd className="inline capitalize">{petition.issue_type?.replace('_', ' ')}</dd></div>
             <div><dt className="text-slate-500 inline">Department: </dt><dd className="inline">{petition.department}</dd></div>
-            <div><dt className="text-slate-500 inline">To: </dt><dd className="inline">{petition.department_email}</dd></div>
+            <div><dt className="text-slate-500 inline">To: </dt><dd className="inline font-mono text-xs">{petition.department_email}</dd></div>
+            {petition.area_info?.display_name && (
+              <div><dt className="text-slate-500 inline">Area: </dt><dd className="inline">{petition.area_info.display_name}</dd></div>
+            )}
             <div><dt className="text-slate-500 inline">Location: </dt><dd className="inline">{petition.location?.address || `${petition.location?.lat}, ${petition.location?.lng}`}</dd></div>
+            {petition.lemma_powered && (
+              <div><dt className="text-slate-500 inline">Powered by: </dt><dd className="inline text-civic-600">Lemma SDK agents</dd></div>
+            )}
           </dl>
         </div>
 

@@ -34,14 +34,14 @@ class SendComplaintEmailOutput(BaseModel):
 def _send_smtp(to_email: str, subject: str, body: str) -> bool:
     host = os.getenv("SMTP_HOST", "").strip()
     if not host:
-        logger.info("SMTP not configured — logging email only")
+        logger.info("SMTP not configured — logging email")
         logger.info("TO: %s | SUBJECT: %s\n%s", to_email, subject, body)
         return False
 
     port = int(os.getenv("SMTP_PORT", "587"))
     user = os.getenv("SMTP_USER", "")
     password = os.getenv("SMTP_PASSWORD", "")
-    from_addr = os.getenv("SMTP_FROM", "civiclens@demo.local")
+    from_addr = os.getenv("SMTP_FROM", "urbis@demo.local")
 
     msg = MIMEMultipart()
     msg["From"] = from_addr
@@ -55,6 +55,26 @@ def _send_smtp(to_email: str, subject: str, body: str) -> bool:
             server.login(user, password)
         server.sendmail(from_addr, [to_email], msg.as_string())
     return True
+
+
+def _send_via_lemma_gmail(pod: Pod, to_email: str, subject: str, body: str) -> bool:
+    """Send via Lemma Gmail connector if configured in the pod."""
+    auth_config = os.getenv("LEMMA_GMAIL_AUTH_CONFIG", "workspace-gmail").strip()
+    try:
+        result = pod.connectors.execute(
+            auth_config,
+            os.getenv("LEMMA_GMAIL_OPERATION", "GMAIL_SEND_EMAIL"),
+            {
+                "recipient_email": to_email,
+                "subject": subject,
+                "body": body,
+            },
+        ).to_dict()
+        logger.info("Gmail sent via Lemma: %s", result)
+        return True
+    except Exception as exc:
+        logger.warning("Lemma Gmail send failed: %s", exc)
+        return False
 
 
 async def send_complaint_email(ctx: FunctionContext, data: SendComplaintEmailInput) -> SendComplaintEmailOutput:
@@ -78,7 +98,7 @@ async def send_complaint_email(ctx: FunctionContext, data: SendComplaintEmailInp
     petition = pod.table("petitions").get(data.petition_id)
     to_email = data.to_email or petition.get("department_email") or os.getenv("DEMO_EMAIL_TO", "municipal-demo@example.com")
 
-    sent = _send_smtp(to_email, data.subject, data.body)
+    sent = _send_via_lemma_gmail(pod, to_email, data.subject, data.body) or _send_smtp(to_email, data.subject, data.body)
     now = datetime.now(timezone.utc).isoformat()
 
     if data.is_escalation:
