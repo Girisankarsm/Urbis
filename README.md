@@ -83,15 +83,26 @@ Set `LEMMA_TOKEN` and `LEMMA_POD_ID` in `.env` to connect the FastAPI backend to
 
 ## Email (optional)
 
-Configure SMTP in `.env` for real sends; otherwise emails are logged (demo-safe):
+Configure SMTP in `.env` for real sends to municipal authorities; otherwise emails are logged (demo-safe).
+
+**Brevo** (recommended — free 300 emails/day): [app.brevo.com](https://app.brevo.com) → SMTP & API → use the SMTP login (e.g. `xxx@smtp-brevo.com`) and verify your sender email.
 
 ```
-SMTP_HOST=smtp.gmail.com
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
-SMTP_USER=your@gmail.com
-SMTP_PASSWORD=app-password
-DEMO_EMAIL_TO=municipal-demo@example.com
+SMTP_USER=your-login@smtp-brevo.com
+SMTP_PASSWORD=your-smtp-key
+SMTP_FROM=your-verified@gmail.com
+DEMO_EMAIL_TO=your@gmail.com
 ```
+
+After editing `.env`, reload env into Docker:
+
+```bash
+docker compose up -d --force-recreate api
+```
+
+Complaints are sent **to** the authority email found by geocoding (e.g. BBMP). `SMTP_FROM` is the verified sender account (Brevo/Gmail), not the citizen — per-user Gmail send requires Google OAuth (not yet implemented).
 
 ## Project structure
 
