@@ -9,8 +9,6 @@ if [[ ! -x "$LEMMA" ]]; then
   exit 1
 fi
 
-echo "# Paste into .env:"
-echo "LEMMA_TOKEN=$("$LEMMA" auth print-token)"
 python3 << 'PY'
 import json
 from pathlib import Path
@@ -21,6 +19,8 @@ data = json.loads(cfg.read_text())
 server = data.get("active_server", "default")
 auth = data["servers"][server].get("auth", {})
 refresh = auth.get("refresh_token") or data["servers"][server].get("refresh_token", "")
+print("# Paste into .env — LEMMA_TOKEN is optional (auto-refreshed every hour):")
 print(f"LEMMA_REFRESH_TOKEN={refresh}")
+print("# LEMMA_POD_ID and LEMMA_ORG_ID should already be set for your Urbis pod.")
+print("# You can leave LEMMA_TOKEN empty or delete it.")
 PY
-echo "# LEMMA_POD_ID and LEMMA_ORG_ID should already be set for your Urbis pod."

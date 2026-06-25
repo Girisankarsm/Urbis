@@ -78,7 +78,10 @@ class Settings(BaseSettings):
 
     @property
     def lemma_enabled(self) -> bool:
-        return bool(self.lemma_token and self.lemma_pod_id)
+        return bool(
+            self.lemma_pod_id
+            and (self.lemma_token or self.lemma_refresh_token)
+        )
 
     @property
     def google_auth_enabled(self) -> bool:

@@ -23,6 +23,7 @@ services:
       MONGODB_DB: urbis
       UPLOAD_DIR: /app/uploads
       LEMMA_TOKEN: ${LEMMA_TOKEN:-}
+      LEMMA_REFRESH_TOKEN: ${LEMMA_REFRESH_TOKEN:-}
       LEMMA_POD_ID: ${LEMMA_POD_ID:-}
       LEMMA_ORG_ID: ${LEMMA_ORG_ID:-}
       LEMMA_BASE_URL: ${LEMMA_BASE_URL:-https://api.lemma.work}
@@ -45,6 +46,8 @@ services:
     volumes:
       - ./backend:/app
       - uploads_data:/app/uploads
+      # Optional: sync Lemma CLI session for auto-refresh without editing .env
+      - ${HOME}/.lemma/config.json:/root/.lemma/config.json:ro
     depends_on:
       mongodb:
         condition: service_healthy

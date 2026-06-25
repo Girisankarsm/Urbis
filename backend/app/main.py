@@ -8,7 +8,13 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.services.lemma_service import is_lemma_available, lemma_token_status, verify_lemma_api
+from app.services.lemma_service import (
+    is_lemma_available,
+    start_lemma_token_refresh_loop,
+    stop_lemma_token_refresh_loop,
+    verify_lemma_api,
+    warm_lemma_token,
+)
 from app.database import close_db, connect_db
 from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
@@ -35,7 +41,15 @@ async def lifespan(app: FastAPI):
 
     await seed_departments(get_db())
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
+    if settings.lemma_enabled:
+        try:
+            await warm_lemma_token()
+            start_lemma_token_refresh_loop()
+            logger.info("Lemma auto-refresh enabled")
+        except Exception as exc:
+            logger.warning("Lemma startup refresh failed (will retry on demand): %s", exc)
     yield
+    await stop_lemma_token_refresh_loop()
     await close_db()
 
 

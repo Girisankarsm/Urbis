@@ -6,9 +6,11 @@ import asyncio
 import base64
 import json
 import logging
+import os
 import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -19,6 +21,51 @@ logger = logging.getLogger(__name__)
 
 _resolved_token: str | None = None
 _resolved_token_exp: float = 0.0
+_refresh_task: asyncio.Task[None] | None = None
+
+TOKEN_REFRESH_BUFFER_SECONDS = 300  # refresh 5 minutes before expiry
+
+
+def _lemma_config_path() -> Path:
+    raw = os.environ.get("LEMMA_CONFIG_FILE", "").strip()
+    if raw:
+        return Path(raw).expanduser()
+    return Path.home() / ".lemma" / "config.json"
+
+
+def _get_refresh_token() -> str:
+    if settings.lemma_refresh_token.strip():
+        return settings.lemma_refresh_token.strip()
+
+    config_path = _lemma_config_path()
+    if not config_path.is_file():
+        return ""
+
+    try:
+        data = json.loads(config_path.read_text())
+        server = data.get("active_server", "default")
+        servers = data.get("servers", {})
+        server_cfg = servers.get(server, {}) if isinstance(servers, dict) else {}
+        auth = server_cfg.get("auth", {}) if isinstance(server_cfg.get("auth"), dict) else {}
+        return str(auth.get("refresh_token") or server_cfg.get("refresh_token") or "").strip()
+    except (json.JSONDecodeError, OSError, AttributeError, TypeError) as exc:
+        logger.debug("Could not read Lemma CLI config: %s", exc)
+        return ""
+
+
+def _token_expiry(token: str) -> float:
+    if token.count(".") != 2:
+        return 0.0
+    return float(_decode_jwt_payload(token).get("exp") or 0)
+
+
+def _token_needs_refresh(token: str) -> bool:
+    if not token:
+        return True
+    exp = _token_expiry(token)
+    if not exp:
+        return False
+    return time.time() >= exp - TOKEN_REFRESH_BUFFER_SECONDS
 
 
 def _decode_jwt_payload(token: str) -> dict[str, Any]:
@@ -36,11 +83,26 @@ def lemma_token_status() -> dict[str, Any]:
         return {
             "configured": False,
             "token_valid": False,
-            "reason": "Set LEMMA_TOKEN and LEMMA_POD_ID in .env",
+            "reason": "Set LEMMA_POD_ID and LEMMA_REFRESH_TOKEN (or LEMMA_TOKEN) in .env",
         }
 
+    refresh_token = _get_refresh_token()
     token = settings.lemma_token.strip()
+    if refresh_token and not token:
+        return {
+            "configured": True,
+            "token_valid": True,
+            "token_type": "auto_refresh",
+            "reason": "Refresh token configured — access token fetched automatically",
+        }
     parts = token.split(".")
+    if len(parts) == 3 and not token.startswith("ey"):
+        return {
+            "configured": True,
+            "token_valid": False,
+            "token_type": "session",
+            "reason": "LEMMA_TOKEN looks truncated — JWT must start with eyJ. Run ./scripts/lemma-env-hint.sh",
+        }
     if len(parts) != 3:
         return {
             "configured": True,
@@ -61,6 +123,14 @@ def lemma_token_status() -> dict[str, Any]:
 
     expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
     if time.time() >= exp:
+        if _get_refresh_token():
+            return {
+                "configured": True,
+                "token_valid": True,
+                "token_type": "auto_refresh",
+                "reason": "Session expired in .env — will auto-refresh on next request",
+                "expires_at": expires_at.isoformat(),
+            }
         return {
             "configured": True,
             "token_valid": False,
@@ -78,39 +148,7 @@ def lemma_token_status() -> dict[str, Any]:
     }
 
 
-async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
-    """Return a Lemma bearer token, refreshing CLI sessions when possible."""
-    global _resolved_token, _resolved_token_exp
-
-    token = settings.lemma_token.strip()
-    if not token:
-        raise RuntimeError("LEMMA_TOKEN is not set")
-
-    parts = token.split(".")
-    if len(parts) != 3:
-        return token
-
-    claims = _decode_jwt_payload(token)
-    exp = claims.get("exp") or 0
-    if (
-        not force_refresh
-        and exp
-        and time.time() < exp - 60
-        and _resolved_token
-        and _resolved_token_exp == exp
-    ):
-        return _resolved_token
-    if not force_refresh and exp and time.time() < exp - 60:
-        return token
-
-    refresh_token = (settings.lemma_refresh_token or "").strip()
-    if not refresh_token:
-        if exp and time.time() >= exp:
-            raise RuntimeError(
-                "Lemma session token expired — set LEMMA_REFRESH_TOKEN or run `lemma auth print-token`"
-            )
-        return token
-
+async def _fetch_fresh_access_token(refresh_token: str) -> str:
     from lemma_sdk.auth import refresh_cli_session
 
     session = await asyncio.to_thread(
@@ -123,12 +161,76 @@ async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
     new_token = (session.get("access_token") or session.get("token") or "").strip()
     if not new_token:
         raise RuntimeError("Lemma refresh succeeded but returned no access token")
-
-    new_claims = _decode_jwt_payload(new_token)
-    _resolved_token = new_token
-    _resolved_token_exp = float(new_claims.get("exp") or 0)
-    logger.info("Refreshed Lemma access token")
     return new_token
+
+
+async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
+    """Return a Lemma bearer token, auto-refreshing from LEMMA_REFRESH_TOKEN when needed."""
+    global _resolved_token, _resolved_token_exp
+
+    refresh_token = _get_refresh_token()
+    token = settings.lemma_token.strip()
+
+    if (
+        not force_refresh
+        and _resolved_token
+        and _resolved_token_exp > time.time() + 60
+    ):
+        return _resolved_token
+
+    if not force_refresh and token and not _token_needs_refresh(token):
+        return token
+
+    if refresh_token:
+        new_token = await _fetch_fresh_access_token(refresh_token)
+        _resolved_token = new_token
+        _resolved_token_exp = _token_expiry(new_token)
+        logger.info("Lemma access token refreshed automatically")
+        return new_token
+
+    if token:
+        return token
+
+    raise RuntimeError(
+        "Lemma not configured — set LEMMA_REFRESH_TOKEN in .env (run ./scripts/lemma-env-hint.sh)"
+    )
+
+
+async def warm_lemma_token() -> None:
+    """Refresh Lemma credentials on API startup."""
+    if not settings.lemma_enabled:
+        return
+    await resolve_lemma_token(force_refresh=bool(_get_refresh_token()))
+
+
+async def _lemma_refresh_loop() -> None:
+    while True:
+        await asyncio.sleep(600)
+        if not settings.lemma_enabled:
+            continue
+        try:
+            await resolve_lemma_token()
+        except Exception as exc:
+            logger.warning("Background Lemma token refresh failed: %s", exc)
+
+
+def start_lemma_token_refresh_loop() -> None:
+    global _refresh_task
+    if not settings.lemma_enabled or _refresh_task is not None:
+        return
+    _refresh_task = asyncio.create_task(_lemma_refresh_loop())
+
+
+async def stop_lemma_token_refresh_loop() -> None:
+    global _refresh_task
+    if _refresh_task is None:
+        return
+    _refresh_task.cancel()
+    try:
+        await _refresh_task
+    except asyncio.CancelledError:
+        pass
+    _refresh_task = None
 
 
 async def verify_lemma_api() -> dict[str, Any]:
