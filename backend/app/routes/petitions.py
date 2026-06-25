@@ -90,7 +90,7 @@ async def approve_petition(
     try:
         petition = await approve_and_send(db, petition_id, req, sender=user)
     except ValueError as e:
-        raise HTTPException(404, str(e)) from e
+        raise HTTPException(400, str(e)) from e
     return {
         "petition": petition,
         "email_sent": petition.get("email_sent", False),

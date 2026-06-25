@@ -17,6 +17,7 @@ from app.models import (
 )
 from app.services import lemma_service
 from app.services.ai import check_resolution, draft_complaint_email, draft_escalation_email
+from app.services.authority_discovery import discover_with_timeout
 from app.services.authority_lookup import lookup_authority, merge_lemma_classification
 from app.services.departments import DEPARTMENTS
 from app.services.email import send_email
@@ -149,20 +150,31 @@ async def create_and_process_petition(
     await log_activity(db, petition_id, "created", f"Petition created — area: {area.display_name}")
 
     classification = lookup_authority(area, req.description)
+    authority_source = classification.authority_source
 
-    draft = draft_complaint_email(
-        classification.issue_type,
-        classification.department,
-        classification.department_email,
-        req.location,
-        req.description,
-        req.photo_url,
-        area_display=area.display_name,
-        city=area.city,
-    )
+    if settings.authority_discovery_enabled:
+        try:
+            discovered = await discover_with_timeout(
+                area,
+                req.description,
+                issue_type=classification.issue_type,
+                timeout_seconds=settings.authority_discovery_timeout_seconds,
+            )
+            if discovered and discovered.department_email:
+                classification = discovered
+                authority_source = "web_search"
+                await log_activity(
+                    db,
+                    petition_id,
+                    "classified",
+                    f"[Web search] {classification.reasoning}",
+                    {**classification.model_dump(), "authority_source": authority_source},
+                )
+        except Exception as exc:
+            logger.warning("Web authority discovery failed: %s", exc)
 
     lemma_powered = False
-    if lemma_service.is_lemma_available():
+    if lemma_service.is_lemma_available() and authority_source != "web_search":
         try:
             lemma_class = await asyncio.wait_for(
                 lemma_service.classify_with_lemma(
@@ -183,6 +195,8 @@ async def create_and_process_petition(
                 timeout=settings.lemma_agent_timeout_seconds,
             )
             classification = merge_lemma_classification(lemma_class, area, req.description)
+            if classification.department_email:
+                authority_source = "lemma"
             lemma_powered = True
             await log_activity(
                 db,
@@ -200,14 +214,34 @@ async def create_and_process_petition(
                 f"[Local routing] {classification.reasoning}",
                 classification.model_dump(),
             )
-    else:
+    elif authority_source not in {"web_search", "lemma"}:
         await log_activity(
             db,
             petition_id,
             "classified",
             classification.reasoning,
-            classification.model_dump(),
+            {**classification.model_dump(), "authority_source": authority_source},
         )
+
+    if (
+        not classification.department_email
+        and authority_source not in {"web_search", "lemma"}
+    ):
+        registry = lookup_authority(area, req.description, classification.issue_type)
+        if registry.department_email:
+            classification = registry
+            authority_source = "registry"
+
+    draft = draft_complaint_email(
+        classification.issue_type,
+        classification.department,
+        classification.department_email or "pending@verify.local",
+        req.location,
+        req.description,
+        req.photo_url,
+        area_display=area.display_name,
+        city=area.city,
+    )
 
     if lemma_service.is_lemma_available():
         try:
@@ -232,6 +266,7 @@ async def create_and_process_petition(
                 "issue_type": classification.issue_type,
                 "department": classification.department,
                 "department_email": classification.department_email,
+                "authority_source": authority_source,
                 "classification_confidence": classification.confidence,
                 "complaint_email_subject": draft.subject,
                 "complaint_email_draft": draft.body,
@@ -261,7 +296,9 @@ async def approve_and_send(
         await log_activity(db, petition_id, "status_changed", "Email rejected by citizen")
         return petition
 
-    to_email = petition.get("department_email") or settings.demo_email_to
+    to_email = (req.to_email or "").strip() or petition.get("department_email") or settings.demo_email_to
+    if not to_email:
+        raise ValueError("Recipient email is required — enter the municipal authority email before sending")
     intended_to = to_email
     if settings.use_demo_email_redirect:
         to_email = settings.demo_email_to

@@ -20,6 +20,7 @@ export interface Petition {
   description?: string
   department?: string
   department_email?: string
+  authority_source?: 'web_search' | 'lemma' | 'registry' | 'unknown'
   area_info?: {
     display_name?: string
     city?: string

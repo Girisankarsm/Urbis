@@ -95,7 +95,7 @@ export async function createPetition(data: {
 
 export async function approvePetition(
   id: string,
-  data: { subject: string; body: string; approved: boolean; is_escalation?: boolean },
+  data: { subject: string; body: string; approved: boolean; is_escalation?: boolean; to_email?: string },
 ): Promise<{
   petition: Petition
   email_sent?: boolean

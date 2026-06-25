@@ -57,6 +57,7 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.include_router(auth_router)
 app.include_router(petitions_router)
 app.include_router(upload_router)
+Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
 
@@ -79,6 +80,7 @@ async def health():
         "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
         "production_ready": settings.is_production,
         "demo_email_redirect": settings.use_demo_email_redirect,
+        "authority_discovery_enabled": settings.authority_discovery_enabled,
     }
 
 

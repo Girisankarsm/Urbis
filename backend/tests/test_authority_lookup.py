@@ -98,4 +98,4 @@ def test_lookup_authority_defaults_to_other():
     )
     result = lookup_authority(area, "random issue")
     assert result.issue_type == "other"
-    assert result.department_email
+    assert result.authority_source == "unknown"

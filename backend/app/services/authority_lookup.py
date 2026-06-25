@@ -6,7 +6,7 @@ import logging
 import re
 
 from app.models import ClassificationResult
-from app.services.departments import DEPARTMENT_BY_ISSUE, DEPARTMENTS, ISSUE_KEYWORDS
+from app.services.departments import ISSUE_KEYWORDS
 from app.services.geocoding import GeoArea
 from app.services.regional_authorities import (
     INDIA_STATE_CONTACTS,
@@ -131,20 +131,20 @@ def lookup_authority(area: GeoArea, description: str, issue_type: str | None = N
                 f"Located complaint in {label}, {area.state or area.country}. "
                 f"Matched {match_labels[match_kind]} and routed to {dept_name}."
             ),
+            authority_source="registry",
         )
 
-    dept_name = DEPARTMENT_BY_ISSUE.get(issue, DEPARTMENT_BY_ISSUE["other"])
-    dept = next(d for d in DEPARTMENTS if d["name"] == dept_name)
-
+    label = _location_label(area)
     return ClassificationResult(
         issue_type=issue,
-        department=f"{dept['name']} ({label})",
-        department_email=dept["contact_email"],
-        confidence=0.5,
+        department=f"Municipal Authority ({label})",
+        department_email="",
+        confidence=0.2,
         reasoning=(
-            f"No registered authority for {label}, {area.state or area.country}. "
-            "Lemma AI will attempt a web search; otherwise using generic municipal routing."
+            f"No cached authority for {label}, {area.state or area.country}. "
+            "Web search or manual verification required before sending."
         ),
+        authority_source="unknown",
     )
 
 
@@ -164,5 +164,6 @@ def merge_lemma_classification(
                 "reasoning",
                 "Lemma agent identified authority via knowledge base and web search.",
             ),
+            authority_source="lemma",
         )
     return lookup_authority(area, description, lemma_result.get("issue_type"))

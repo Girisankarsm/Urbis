@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     smtp_from: str = "urbis@demo.local"
     demo_email_to: str = "municipal-demo@example.com"
     demo_email_redirect: bool = False
+    authority_discovery_enabled: bool = True
+    authority_discovery_timeout_seconds: int = 15
     lemma_agent_timeout_seconds: int = 25
     escalation_days: int = 3
     openai_api_key: str = ""
@@ -62,6 +64,15 @@ class Settings(BaseSettings):
     def parse_demo_email_redirect(cls, value: object) -> bool:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes"}
+        return bool(value)
+
+    @field_validator("authority_discovery_enabled", mode="before")
+    @classmethod
+    def parse_authority_discovery_enabled(cls, value: object) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes"}
+        if value is None:
+            return True
         return bool(value)
 
     @property

@@ -97,6 +97,7 @@ export function ApprovalDetailPage() {
   const [petition, setPetition] = useState<Petition | null>(null)
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
+  const [toEmail, setToEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
@@ -111,6 +112,7 @@ export function ApprovalDetailPage() {
         setSubject(data.petition.complaint_email_subject || '')
         setBody(data.petition.complaint_email_draft || '')
       }
+      setToEmail(data.petition.department_email || '')
       setLoading(false)
     })
   }, [id, isEscalation])
@@ -119,7 +121,13 @@ export function ApprovalDetailPage() {
     if (!id) return
     setSubmitting(true)
     try {
-      const result = await approvePetition(id, { subject, body, approved, is_escalation: isEscalation })
+      const result = await approvePetition(id, {
+        subject,
+        body,
+        to_email: toEmail.trim() || undefined,
+        approved,
+        is_escalation: isEscalation,
+      })
       if (!approved) {
         navigate(`/petitions/${id}`)
         return
@@ -167,7 +175,7 @@ export function ApprovalDetailPage() {
           <span className="block text-sm mt-1 text-civic-700">From: <strong>{user.email}</strong> (your Gmail)</span>
         )}
         <span className="block text-xs mt-2 text-slate-500">
-          Approving sends from your Gmail to the municipal contact below.
+          Verify the recipient email below — Urbis finds it via web search from your map location.
         </span>
       </p>
 
@@ -178,7 +186,12 @@ export function ApprovalDetailPage() {
             <dl className="text-sm space-y-1">
             <div><dt className="text-slate-500 inline">Type: </dt><dd className="inline capitalize">{petition.issue_type?.replace('_', ' ')}</dd></div>
             <div><dt className="text-slate-500 inline">Department: </dt><dd className="inline">{petition.department}</dd></div>
-            <div><dt className="text-slate-500 inline">To: </dt><dd className="inline font-mono text-xs">{petition.department_email}</dd></div>
+            {petition.authority_source && (
+              <div>
+                <dt className="text-slate-500 inline">Contact source: </dt>
+                <dd className="inline capitalize">{petition.authority_source.replace('_', ' ')}</dd>
+              </div>
+            )}
             {petition.area_info?.display_name && (
               <div><dt className="text-slate-500 inline">Area: </dt><dd className="inline">{petition.area_info.display_name}</dd></div>
             )}
@@ -191,6 +204,17 @@ export function ApprovalDetailPage() {
 
         <div className="bg-white rounded-2xl border p-4 space-y-4">
           <h3 className="font-semibold">Email Draft</h3>
+          <div>
+            <label className="text-sm font-medium">To (municipal authority)</label>
+            <input
+              type="email"
+              value={toEmail}
+              onChange={(e) => setToEmail(e.target.value)}
+              placeholder="secretary@tmcofficials.in"
+              className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono"
+              required
+            />
+          </div>
           <div>
             <label className="text-sm font-medium">Subject</label>
             <input
@@ -211,7 +235,7 @@ export function ApprovalDetailPage() {
           <div className="flex gap-3">
             <button
               onClick={() => handleApprove(true)}
-              disabled={submitting}
+              disabled={submitting || !toEmail.trim()}
               className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50"
             >
               {submitting ? 'Sending…' : '✓ Approve & Send'}

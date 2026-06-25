@@ -69,6 +69,7 @@ class ApprovalRequest(BaseModel):
     body: str
     approved: bool = True
     is_escalation: bool = False
+    to_email: str | None = None
 
 
 class FollowUpRequest(BaseModel):
@@ -81,6 +82,7 @@ class ClassificationResult(BaseModel):
     department_email: str
     confidence: float
     reasoning: str
+    authority_source: str = "registry"
 
 
 class EmailDraft(BaseModel):

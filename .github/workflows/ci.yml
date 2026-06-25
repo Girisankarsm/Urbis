@@ -30,6 +30,7 @@ jobs:
           MONGODB_URL: mongodb://localhost:27017
           MONGODB_DB: urbis_test
           ENVIRONMENT: test
+          AUTHORITY_DISCOVERY_ENABLED: "false"
         run: pytest -q
 
   frontend:
