@@ -50,10 +50,22 @@ async def upload_image(
             return {"url": url, "storage": "cloudinary"}
         except Exception as exc:
             logger.error("Cloudinary upload failed: %s", exc)
-            raise HTTPException(
-                502,
-                "Photo upload failed. Cloudinary is required so authorities can view your image.",
-            ) from exc
+            if settings.is_production:
+                detail = (
+                    "Photo upload failed. Check Cloudinary API key has Upload permission "
+                    f"in the Cloudinary dashboard. ({exc})"
+                )
+                raise HTTPException(502, detail) from exc
+            logger.warning("Falling back to local storage in development")
+            url = await _save_local(content, ext)
+            return {
+                "url": url,
+                "storage": "local",
+                "warning": (
+                    "Cloudinary upload failed (API key may lack Upload permission). "
+                    "Using local storage for this session — fix Cloudinary for production."
+                ),
+            }
 
     url = await _save_local(content, ext)
     return {"url": url, "storage": "local", "filename": Path(url).name}
