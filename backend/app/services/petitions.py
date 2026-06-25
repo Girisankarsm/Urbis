@@ -343,23 +343,35 @@ async def upload_follow_up(
     return (await get_petition(db, petition_id)) or {}
 
 
-async def find_stale_for_escalation(db: AsyncIOMotorDatabase) -> dict | None:
+async def find_stale_for_escalation(
+    db: AsyncIOMotorDatabase,
+    reporter_user_id: str | None = None,
+) -> dict | None:
     cutoff = datetime.now(timezone.utc) - timedelta(days=settings.escalation_days)
-    cursor = db.petitions.find(
-        {
-            "status": PetitionStatus.SUBMITTED.value,
-            "submitted_at": {"$lte": cutoff},
-            "escalation_email_draft": {"$exists": False},
-        }
-    ).sort("submitted_at", 1).limit(1)
+    query: dict = {
+        "status": PetitionStatus.SUBMITTED.value,
+        "submitted_at": {"$lte": cutoff},
+        "escalation_email_draft": {"$exists": False},
+    }
+    if reporter_user_id:
+        query["reporter_user_id"] = reporter_user_id
+    cursor = db.petitions.find(query).sort("submitted_at", 1).limit(1)
 
     async for doc in cursor:
         return _serialize(doc)
     return None
 
 
-async def prepare_escalation(db: AsyncIOMotorDatabase, petition_id: str | None = None) -> dict | None:
-    petition = await get_petition(db, petition_id) if petition_id else await find_stale_for_escalation(db)
+async def prepare_escalation(
+    db: AsyncIOMotorDatabase,
+    petition_id: str | None = None,
+    reporter_user_id: str | None = None,
+) -> dict | None:
+    petition = (
+        await get_petition(db, petition_id)
+        if petition_id
+        else await find_stale_for_escalation(db, reporter_user_id)
+    )
     if not petition:
         return None
 

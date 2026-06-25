@@ -34,6 +34,11 @@ services:
       DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-municipal-demo@example.com}
       ESCALATION_DAYS: ${ESCALATION_DAYS:-3}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-lax}
       # Google OAuth + session: loaded from env_file (.env) — do not override with empty defaults
     volumes:
       - ./backend:/app

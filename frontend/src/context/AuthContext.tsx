@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-import { fetchAuthMe, fetchAuthStatus, logout as apiLogout } from '../api/client'
+import { fetchAuthMe, fetchAuthStatus, loginUrl, logout as apiLogout } from '../api/client'
 
 export interface AuthUser {
   id: string
@@ -22,6 +23,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [googleEnabled, setGoogleEnabled] = useState(false)
@@ -43,14 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    const justSignedIn = params.has('signed_in')
     if (params.has('signed_in') || params.has('auth_error')) {
       window.history.replaceState({}, '', window.location.pathname)
     }
-    refresh().finally(() => setLoading(false))
-  }, [refresh])
+    refresh().finally(() => {
+      setLoading(false)
+      if (justSignedIn) {
+        navigate('/dashboard', { replace: true })
+      }
+    })
+  }, [refresh, navigate])
 
   const login = () => {
-    window.location.href = '/api/auth/google'
+    window.location.href = loginUrl()
   }
 
   const logout = async () => {

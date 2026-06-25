@@ -8,15 +8,35 @@ import { useAuth } from '../context/AuthContext'
 import type { Petition } from '../types'
 
 export function ApprovalsPage() {
+  const { user, loading: authLoading, googleEnabled } = useAuth()
   const [complaints, setComplaints] = useState<Petition[]>([])
   const [escalations, setEscalations] = useState<Petition[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getPendingApprovals().then((data) => {
-      setComplaints(data.complaints)
-      setEscalations(data.escalations)
-    })
-  }, [])
+    if (authLoading) return
+    if (googleEnabled && !user) {
+      setLoading(false)
+      return
+    }
+    getPendingApprovals()
+      .then((data) => {
+        setComplaints(data.complaints)
+        setEscalations(data.escalations)
+      })
+      .finally(() => setLoading(false))
+  }, [authLoading, googleEnabled, user])
+
+  if (!authLoading && googleEnabled && !user) {
+    return (
+      <LoginPrompt
+        title="Sign in to review approvals"
+        description="Pending complaint and escalation emails are visible only to your account."
+      />
+    )
+  }
+
+  if (loading) return <p className="text-slate-500">Loading…</p>
 
   return (
     <div>

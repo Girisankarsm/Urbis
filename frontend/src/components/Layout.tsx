@@ -1,11 +1,27 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 
 import { useAuth } from '../context/AuthContext'
 import { UserMenu } from './UserMenu'
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  access_denied: 'Google sign-in was cancelled. Add your email as a test user in Google Cloud Console if the app is in Testing mode.',
+  denied: 'Google sign-in was denied. Publish the OAuth consent screen or add yourself as a test user.',
+}
+
 export function Layout() {
   const { user, loading, login, logout, googleEnabled } = useAuth()
   const location = useLocation()
+  const [authError, setAuthError] = useState('')
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('auth_error')
+    if (code) {
+      setAuthError(AUTH_ERROR_MESSAGES[code] ?? 'Sign-in failed. Please try again.')
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -19,7 +35,7 @@ export function Layout() {
             </div>
           </Link>
           <nav className="flex items-center gap-0.5 sm:gap-1">
-            <NavLink to="/" active={location.pathname === '/'}>Dashboard</NavLink>
+            <NavLink to="/dashboard" active={location.pathname === '/dashboard'}>Dashboard</NavLink>
             <NavLink to="/new" active={location.pathname === '/new'}>Report Issue</NavLink>
             <NavLink to="/approvals" active={location.pathname.startsWith('/approvals')}>Approvals</NavLink>
             {!loading && googleEnabled && (
@@ -40,6 +56,11 @@ export function Layout() {
       </header>
       <main className="flex-1 w-full">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+          {authError && (
+            <div className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              {authError}
+            </div>
+          )}
           <Outlet />
         </div>
       </main>

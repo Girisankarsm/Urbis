@@ -109,7 +109,7 @@ export function ProfilePage() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
             <h4 className="text-sm font-semibold text-slate-900">Quick links</h4>
             <nav className="flex flex-col gap-1">
-              <ProfileLink to="/" label="Dashboard" description="All petitions overview" />
+              <ProfileLink to="/dashboard" label="Dashboard" description="All petitions overview" />
               <ProfileLink to="/new" label="Report issue" description="Submit a new complaint" />
               <ProfileLink to="/approvals" label="Approvals" description="Review pending emails" />
             </nav>

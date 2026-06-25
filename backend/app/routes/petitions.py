@@ -4,6 +4,7 @@ from app.config import settings
 from app.database import get_db
 from app.dependencies import get_optional_user
 from app.models import ApprovalRequest, CreatePetitionRequest, FollowUpRequest
+from app.services.access import assert_petition_access
 from app.services.petitions import (
     approve_and_send,
     create_and_process_petition,
@@ -17,6 +18,14 @@ from app.services.petitions import (
 router = APIRouter(prefix="/api/petitions", tags=["petitions"])
 
 
+def _user_filter(user: dict | None) -> str | None:
+    if settings.google_auth_enabled:
+        if not user:
+            raise HTTPException(401, "Sign in with Google to continue")
+        return user["_id"]
+    return None
+
+
 @router.get("")
 async def get_petitions(
     status: str | None = Query(None),
@@ -24,30 +33,33 @@ async def get_petitions(
     user: dict | None = Depends(get_optional_user),
 ):
     db = get_db()
-    if mine:
-        if not user:
-            raise HTTPException(401, "Sign in with Google to continue")
-        return await list_petitions(db, status, reporter_user_id=user["_id"])
-    return await list_petitions(db, status)
+    reporter_id = _user_filter(user) if settings.google_auth_enabled or mine else None
+    if mine and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
+    if mine and user:
+        reporter_id = user["_id"]
+    return await list_petitions(db, status, reporter_user_id=reporter_id)
 
 
 @router.get("/pending-approvals")
-async def pending_approvals():
+async def pending_approvals(user: dict | None = Depends(get_optional_user)):
     db = get_db()
-    drafts = await list_petitions(db, "draft")
+    reporter_id = _user_filter(user)
+    drafts = await list_petitions(db, "draft", reporter_user_id=reporter_id)
     escalations = []
-    for p in await list_petitions(db, "under_review"):
+    for p in await list_petitions(db, "under_review", reporter_user_id=reporter_id):
         if p.get("escalation_email_draft"):
             escalations.append(p)
     return {"complaints": drafts, "escalations": escalations}
 
 
 @router.get("/{petition_id}")
-async def get_one(petition_id: str):
+async def get_one(petition_id: str, user: dict | None = Depends(get_optional_user)):
     db = get_db()
     petition = await get_petition(db, petition_id)
     if not petition:
         raise HTTPException(404, "Petition not found")
+    assert_petition_access(petition, user)
     activity = await get_activity(db, petition_id)
     return {"petition": petition, "activity": activity}
 
@@ -70,6 +82,10 @@ async def approve_petition(
     if settings.google_auth_enabled and not user:
         raise HTTPException(401, "Sign in with Google to continue")
     db = get_db()
+    petition = await get_petition(db, petition_id)
+    if not petition:
+        raise HTTPException(404, "Petition not found")
+    assert_petition_access(petition, user)
     try:
         petition = await approve_and_send(db, petition_id, req, sender=user)
     except ValueError as e:
@@ -78,8 +94,16 @@ async def approve_petition(
 
 
 @router.post("/{petition_id}/follow-up")
-async def follow_up(petition_id: str, req: FollowUpRequest):
+async def follow_up(
+    petition_id: str,
+    req: FollowUpRequest,
+    user: dict | None = Depends(get_optional_user),
+):
     db = get_db()
+    petition = await get_petition(db, petition_id)
+    if not petition:
+        raise HTTPException(404, "Petition not found")
+    assert_petition_access(petition, user)
     try:
         petition = await upload_follow_up(db, petition_id, req.follow_up_photo_url)
     except ValueError as e:
@@ -88,9 +112,10 @@ async def follow_up(petition_id: str, req: FollowUpRequest):
 
 
 @router.post("/escalation/check")
-async def check_escalation():
+async def check_escalation(user: dict | None = Depends(get_optional_user)):
     db = get_db()
-    result = await prepare_escalation(db)
+    reporter_id = _user_filter(user) if settings.google_auth_enabled else None
+    result = await prepare_escalation(db, reporter_user_id=reporter_id)
     if not result:
         return {"message": "No stale petitions found", "petition": None}
     return {"petition": result, "message": "Escalation draft ready for approval"}

@@ -160,3 +160,45 @@ CLOUDINARY_FOLDER=urbis
 - Optional **Google sign-in** — complaints send from the citizen's Gmail when configured
 - Escalation threshold: **3 days** (configurable via `ESCALATION_DAYS`)
 - Trigger escalation manually: `POST /api/petitions/escalation/check`
+
+## Production deployment
+
+Deploy the API on **Render** and the frontend on **Vercel** (or any static host).
+
+### 1. API (Render)
+
+1. Push this repo to GitHub and connect it in [Render](https://render.com)
+2. Use the included `render.yaml` blueprint or create a **Web Service** from `backend/Dockerfile`
+3. Set environment variables (see `.env.example`):
+   - `ENVIRONMENT=production`
+   - `MONGODB_URL` — MongoDB Atlas connection string
+   - `SESSION_SECRET` — long random string (Render can auto-generate)
+   - `FRONTEND_URL` — e.g. `https://urbis.vercel.app`
+   - `GOOGLE_REDIRECT_URI` — e.g. `https://urbis-api.onrender.com/api/auth/google/callback`
+   - `CORS_ORIGINS` — same as `FRONTEND_URL`
+   - `COOKIE_SECURE=true` and `COOKIE_SAMESITE=none` (required for cross-origin cookies)
+   - Cloudinary, SMTP, Lemma keys as needed
+4. Health check: `GET /api/health`
+
+### 2. Frontend (Vercel)
+
+1. Import the repo; set **Root Directory** to `frontend`
+2. Build command: `npm run build` · Output: `dist`
+3. Environment variable: `VITE_API_URL=https://your-api.onrender.com` (no trailing slash)
+4. Redeploy after changing `VITE_API_URL`
+
+### 3. Google OAuth (production)
+
+1. Google Cloud Console → OAuth client → add authorized redirect URI for your Render API callback
+2. **Testing mode**: add each tester under OAuth consent screen → Test users
+3. **Public launch**: publish the consent screen and complete Google verification for `gmail.send`
+
+### 4. Tests & CI
+
+```bash
+./scripts/test.sh          # backend (needs MongoDB) + frontend unit tests
+cd backend && pytest -q    # API tests only
+cd frontend && npm test    # Vitest
+```
+
+GitHub Actions runs the same checks on every push to `main` (`.github/workflows/ci.yml`).

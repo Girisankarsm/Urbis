@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { listPetitions } from '../api/client'
+import { listMyPetitions, listPetitions } from '../api/client'
 import { StatusBadge } from '../components/StatusBadge'
+import { useAuth } from '../context/AuthContext'
 import type { Petition, PetitionStatus } from '../types'
 
 const FILTERS: { label: string; value: PetitionStatus | '' }[] = [
@@ -15,17 +16,23 @@ const FILTERS: { label: string; value: PetitionStatus | '' }[] = [
 ]
 
 export function DashboardPage() {
+  const { user, loading: authLoading, googleEnabled } = useAuth()
   const [petitions, setPetitions] = useState<Petition[]>([])
   const [filter, setFilter] = useState<PetitionStatus | ''>('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
+    if (authLoading) return
+
     setLoading(true)
-    listPetitions(filter || undefined)
+    setError('')
+    const fetchPetitions = googleEnabled ? listMyPetitions : listPetitions
+    fetchPetitions(filter || undefined)
       .then(setPetitions)
-      .catch(console.error)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load petitions'))
       .finally(() => setLoading(false))
-  }, [filter])
+  }, [filter, authLoading, googleEnabled, user])
 
   return (
     <div>
@@ -55,6 +62,10 @@ export function DashboardPage() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
+      )}
 
       {loading ? (
         <p className="text-slate-500">Loading…</p>

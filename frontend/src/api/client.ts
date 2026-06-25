@@ -8,7 +8,16 @@ export interface AuthUser {
   can_send_gmail: boolean
 }
 
-const API = '/api'
+const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+const API = `${API_BASE}/api`
+
+export function apiBaseUrl(): string {
+  return API_BASE
+}
+
+export function loginUrl(): string {
+  return `${API_BASE}/api/auth/google`
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -24,7 +33,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json()
 }
 
-export async function fetchAuthStatus(): Promise<{ google_auth_enabled: boolean; login_url: string | null }> {
+export async function fetchAuthStatus(): Promise<{
+  google_auth_enabled: boolean
+  login_url: string | null
+  oauth_production_notes?: string
+}> {
   return request('/auth/status')
 }
 
@@ -40,7 +53,7 @@ export async function uploadPhoto(file: File, kind: 'petitions' | 'follow-up' = 
   const form = new FormData()
   form.append('file', file)
   const query = kind === 'follow-up' ? '?kind=follow-up' : ''
-  const res = await fetch(`/api/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
+  const res = await fetch(`${API}/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
   if (!res.ok) throw new Error('Upload failed')
   const data = await res.json()
   return data.url

@@ -34,10 +34,16 @@ def _auth_enabled() -> bool:
 
 @router.get("/status")
 async def auth_status():
-    return {
+    payload = {
         "google_auth_enabled": _auth_enabled(),
         "login_url": "/api/auth/google" if _auth_enabled() else None,
     }
+    if settings.is_production and _auth_enabled():
+        payload["oauth_production_notes"] = (
+            "Publish the OAuth consent screen and add your production redirect URI "
+            f"({settings.google_redirect_uri}). Gmail send scope requires Google verification for public users."
+        )
+    return payload
 
 
 @router.get("/google")
@@ -55,10 +61,11 @@ async def google_callback(request: Request):
 
     try:
         token = await oauth.google.authorize_access_token(request)
-    except Exception:
+    except Exception as exc:
         logger.exception("Google OAuth callback failed")
+        error = request.query_params.get("error", "unknown")
         return RedirectResponse(
-            url=f"{settings.frontend_url}/?auth_error=1",
+            url=f"{settings.frontend_url}/?auth_error={error}",
             status_code=302,
         )
 
@@ -84,8 +91,8 @@ async def google_callback(request: Request):
         key=COOKIE_NAME,
         value=session_token,
         httponly=True,
-        samesite="lax",
-        secure=settings.cookie_secure,
+        samesite=settings.effective_cookie_samesite,
+        secure=settings.effective_cookie_secure,
         max_age=SESSION_DAYS * 24 * 3600,
     )
     return response
@@ -100,5 +107,9 @@ async def me(request: Request):
 @router.post("/logout")
 async def logout():
     response = JSONResponse({"ok": True})
-    response.delete_cookie(COOKIE_NAME)
+    response.delete_cookie(
+        COOKIE_NAME,
+        samesite=settings.effective_cookie_samesite,
+        secure=settings.effective_cookie_secure,
+    )
     return response

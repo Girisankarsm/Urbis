@@ -27,7 +27,7 @@ export function LoginPrompt({ title, description }: { title: string; description
       )}
       <p className="mt-4 text-xs text-slate-500">
         <Link to="/" className="text-civic-600 hover:underline">
-          Back to dashboard
+          Back to home
         </Link>
       </p>
     </div>
