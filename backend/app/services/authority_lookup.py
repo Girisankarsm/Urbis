@@ -5,63 +5,16 @@ from __future__ import annotations
 import logging
 import re
 
-from app.models import ClassificationResult, Location
+from app.models import ClassificationResult
 from app.services.departments import DEPARTMENT_BY_ISSUE, DEPARTMENTS, ISSUE_KEYWORDS
 from app.services.geocoding import GeoArea
+from app.services.regional_authorities import (
+    INDIA_STATE_CONTACTS,
+    METRO_ALIASES,
+    REGIONAL_CONTACTS,
+)
 
 logger = logging.getLogger(__name__)
-
-# Public-facing municipal complaint contacts (demo / fallback when web search unavailable)
-REGIONAL_CONTACTS: dict[str, dict[str, tuple[str, str]]] = {
-    "bengaluru": {
-        "pothole": ("BBMP Roads & Infrastructure", "complaints@bbmp.gov.in"),
-        "garbage": ("BBMP Solid Waste Management", "swm@bbmp.gov.in"),
-        "streetlight": ("BBMP Electrical", "electrical@bbmp.gov.in"),
-        "water_leak": ("BWSSB Water Supply", "contactus@bwssb.org"),
-        "sewage": ("BWSSB Sewerage", "contactus@bwssb.org"),
-        "other": ("BBMP Control Room", "complaints@bbmp.gov.in"),
-    },
-    "bangalore": {
-        "pothole": ("BBMP Roads & Infrastructure", "complaints@bbmp.gov.in"),
-        "garbage": ("BBMP Solid Waste Management", "swm@bbmp.gov.in"),
-        "streetlight": ("BBMP Electrical", "electrical@bbmp.gov.in"),
-        "water_leak": ("BWSSB Water Supply", "contactus@bwssb.org"),
-        "sewage": ("BWSSB Sewerage", "contactus@bwssb.org"),
-        "other": ("BBMP Control Room", "complaints@bbmp.gov.in"),
-    },
-    "mumbai": {
-        "pothole": ("BMC Roads Department", "customercare@mcgm.gov.in"),
-        "garbage": ("BMC Solid Waste Management", "customercare@mcgm.gov.in"),
-        "streetlight": ("BMC Electrical", "customercare@mcgm.gov.in"),
-        "water_leak": ("BMC Water Supply", "customercare@mcgm.gov.in"),
-        "sewage": ("BMC Sewerage", "customercare@mcgm.gov.in"),
-        "other": ("BMC Control Room", "customercare@mcgm.gov.in"),
-    },
-    "delhi": {
-        "pothole": ("MCD Roads", "mcd@mcddelhi.gov.in"),
-        "garbage": ("MCD Sanitation", "mcd@mcddelhi.gov.in"),
-        "streetlight": ("MCD Electrical", "mcd@mcddelhi.gov.in"),
-        "water_leak": ("Delhi Jal Board", "djb@delhi.gov.in"),
-        "sewage": ("Delhi Jal Board Sewerage", "djb@delhi.gov.in"),
-        "other": ("MCD Control Room", "mcd@mcddelhi.gov.in"),
-    },
-    "chennai": {
-        "pothole": ("Greater Chennai Corporation Roads", "gcccomplaints@gccservices.in"),
-        "garbage": ("GCC Sanitation", "gcccomplaints@gccservices.in"),
-        "streetlight": ("GCC Electrical", "gcccomplaints@gccservices.in"),
-        "water_leak": ("Metrowater Chennai", "metrowater@chennaimetrorail.org"),
-        "sewage": ("GCC Sewerage", "gcccomplaints@gccservices.in"),
-        "other": ("GCC Control Room", "gcccomplaints@gccservices.in"),
-    },
-    "hyderabad": {
-        "pothole": ("GHMC Roads", "ghmccomplaints@ghmc.gov.in"),
-        "garbage": ("GHMC Sanitation", "ghmccomplaints@ghmc.gov.in"),
-        "streetlight": ("GHMC Electrical", "ghmccomplaints@ghmc.gov.in"),
-        "water_leak": ("HMWSSB Water", "customercare@hmwssb.gov.in"),
-        "sewage": ("HMWSSB Sewerage", "customercare@hmwssb.gov.in"),
-        "other": ("GHMC Control Room", "ghmccomplaints@ghmc.gov.in"),
-    },
-}
 
 
 def _classify_issue_type(description: str) -> str:
@@ -75,43 +28,123 @@ def _classify_issue_type(description: str) -> str:
     return best if scores[best] > 0 else "other"
 
 
-def _city_key(area: GeoArea) -> str:
-    for candidate in (area.city, area.municipality, area.state):
-        if candidate:
-            return candidate.lower().strip()
-    return ""
+def _area_haystack(area: GeoArea) -> str:
+    parts = (
+        area.display_name,
+        area.city,
+        area.district,
+        area.suburb,
+        area.municipality,
+        area.state,
+        area.country,
+        area.postcode,
+    )
+    return " ".join(p for p in parts if p).lower()
+
+
+def _normalize_state(state: str) -> str:
+    return state.strip().lower().replace("&", "and")
+
+
+def _match_direct_region(haystack: str) -> str | None:
+    """Match known city/corporation names — prefer longer keys (e.g. new delhi before delhi)."""
+    for key in sorted(REGIONAL_CONTACTS.keys(), key=len, reverse=True):
+        if key in haystack:
+            return key
+    return None
+
+
+def _match_metro_alias(haystack: str) -> str | None:
+    """Suburbs that geocode without the main city name."""
+    for parent, aliases in METRO_ALIASES.items():
+        if parent not in REGIONAL_CONTACTS:
+            continue
+        if any(alias in haystack for alias in aliases):
+            return parent
+    return None
+
+
+def _match_india_state(haystack: str, state: str) -> str | None:
+    if "india" not in haystack and state:
+        haystack = f"{haystack} {state.lower()}"
+    normalized = _normalize_state(state)
+    for state_key in sorted(INDIA_STATE_CONTACTS.keys(), key=len, reverse=True):
+        if state_key in haystack or state_key in normalized:
+            return state_key
+    return None
+
+
+def _contacts_for_region(region_key: str, issue: str) -> tuple[str, str]:
+    contacts = REGIONAL_CONTACTS.get(region_key) or INDIA_STATE_CONTACTS.get(region_key, {})
+    return contacts.get(issue, contacts["other"])
+
+
+def _location_label(area: GeoArea) -> str:
+    return (
+        area.city
+        or area.suburb
+        or area.district
+        or area.municipality
+        or area.display_name.split(",")[0]
+        or "your area"
+    )
+
+
+def resolve_region_key(area: GeoArea) -> tuple[str | None, str]:
+    """Return (region_key, match_kind) where match_kind describes how we matched."""
+    haystack = _area_haystack(area)
+
+    direct = _match_direct_region(haystack)
+    if direct:
+        return direct, "city"
+
+    metro = _match_metro_alias(haystack)
+    if metro:
+        return metro, "metro"
+
+    if area.country.lower() in {"india", "भारत"} or "india" in haystack:
+        state_key = _match_india_state(haystack, area.state)
+        if state_key:
+            return state_key, "state"
+
+    return None, "none"
 
 
 def lookup_authority(area: GeoArea, description: str, issue_type: str | None = None) -> ClassificationResult:
     issue = issue_type or _classify_issue_type(description)
-    city_key = _city_key(area)
+    region_key, match_kind = resolve_region_key(area)
+    label = _location_label(area)
 
-    # Try regional government contacts first
-    for key, contacts in REGIONAL_CONTACTS.items():
-        if key in city_key or key in area.display_name.lower():
-            dept_name, email = contacts.get(issue, contacts["other"])
-            return ClassificationResult(
-                issue_type=issue,
-                department=dept_name,
-                department_email=email,
-                confidence=0.85,
-                reasoning=(
-                    f"Matched regional authority for {area.city or area.municipality} "
-                    f"({area.state}, {area.country}). Routed to {dept_name}."
-                ),
-            )
+    if region_key:
+        dept_name, email = _contacts_for_region(region_key, issue)
+        match_labels = {
+            "city": f"city/municipality ({region_key})",
+            "metro": f"metro area near {region_key}",
+            "state": f"state ({region_key})",
+        }
+        return ClassificationResult(
+            issue_type=issue,
+            department=dept_name,
+            department_email=email,
+            confidence=0.9 if match_kind == "city" else 0.8 if match_kind == "metro" else 0.7,
+            reasoning=(
+                f"Located complaint in {label}, {area.state or area.country}. "
+                f"Matched {match_labels[match_kind]} and routed to {dept_name}."
+            ),
+        )
 
-    # Generic Metro City fallback
     dept_name = DEPARTMENT_BY_ISSUE.get(issue, DEPARTMENT_BY_ISSUE["other"])
     dept = next(d for d in DEPARTMENTS if d["name"] == dept_name)
-    area_label = area.city or area.municipality or area.display_name
 
     return ClassificationResult(
         issue_type=issue,
-        department=f"{dept['name']} ({area_label})",
+        department=f"{dept['name']} ({label})",
         department_email=dept["contact_email"],
-        confidence=0.6,
-        reasoning=f"No specific regional contact found for {area_label}. Using default municipal routing.",
+        confidence=0.5,
+        reasoning=(
+            f"No registered authority for {label}, {area.state or area.country}. "
+            "Lemma AI will attempt a web search; otherwise using generic municipal routing."
+        ),
     )
 
 
@@ -127,6 +160,9 @@ def merge_lemma_classification(
             department=lemma_result.get("department") or "Municipal Authority",
             department_email=email,
             confidence=float(lemma_result.get("confidence", 0.8)),
-            reasoning=lemma_result.get("reasoning", "Lemma agent identified authority via knowledge base and web search."),
+            reasoning=lemma_result.get(
+                "reasoning",
+                "Lemma agent identified authority via knowledge base and web search.",
+            ),
         )
     return lookup_authority(area, description, lemma_result.get("issue_type"))

@@ -78,6 +78,7 @@ async def health():
         "cloudinary_configured": settings.cloudinary_enabled,
         "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
         "production_ready": settings.is_production,
+        "demo_email_redirect": settings.use_demo_email_redirect,
     }
 
 

@@ -54,7 +54,12 @@ export async function uploadPhoto(file: File, kind: 'petitions' | 'follow-up' = 
   form.append('file', file)
   const query = kind === 'follow-up' ? '?kind=follow-up' : ''
   const res = await fetch(`${API}/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
-  if (!res.ok) throw new Error('Upload failed')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    const detail = err.detail
+    const message = typeof detail === 'string' ? detail : 'Upload failed'
+    throw new Error(message)
+  }
   const data = await res.json()
   return data.url
 }
@@ -91,12 +96,22 @@ export async function createPetition(data: {
 export async function approvePetition(
   id: string,
   data: { subject: string; body: string; approved: boolean; is_escalation?: boolean },
-): Promise<{ petition: Petition }> {
+): Promise<{
+  petition: Petition
+  email_sent?: boolean
+  sent_to?: string
+  intended_to?: string
+  send_message?: string
+}> {
   return request(`/petitions/${id}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+}
+
+export async function deletePetition(id: string): Promise<{ message: string; id: string }> {
+  return request(`/petitions/${id}`, { method: 'DELETE' })
 }
 
 export async function uploadFollowUp(id: string, follow_up_photo_url: string): Promise<{ petition: Petition }> {

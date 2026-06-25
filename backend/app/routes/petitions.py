@@ -8,6 +8,7 @@ from app.services.access import assert_petition_access
 from app.services.petitions import (
     approve_and_send,
     create_and_process_petition,
+    delete_petition,
     get_activity,
     get_petition,
     list_petitions,
@@ -90,7 +91,28 @@ async def approve_petition(
         petition = await approve_and_send(db, petition_id, req, sender=user)
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
-    return {"petition": petition}
+    return {
+        "petition": petition,
+        "email_sent": petition.get("email_sent", False),
+        "sent_to": petition.get("sent_to"),
+        "intended_to": petition.get("intended_to"),
+        "send_message": petition.get("send_message", ""),
+    }
+
+
+@router.delete("/{petition_id}")
+async def remove_petition(petition_id: str, user: dict | None = Depends(get_optional_user)):
+    if settings.google_auth_enabled and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
+    db = get_db()
+    petition = await get_petition(db, petition_id)
+    if not petition:
+        raise HTTPException(404, "Petition not found")
+    assert_petition_access(petition, user)
+    deleted = await delete_petition(db, petition_id)
+    if not deleted:
+        raise HTTPException(404, "Petition not found")
+    return {"message": "Petition deleted", "id": petition_id}
 
 
 @router.post("/{petition_id}/follow-up")

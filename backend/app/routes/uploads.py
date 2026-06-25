@@ -17,11 +17,13 @@ upload_router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 async def _save_local(content: bytes, ext: str) -> str:
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{uuid.uuid4().hex}{ext}"
+    filename = f"{uuid4().hex}{ext}"
     filepath = upload_dir / filename
     async with aiofiles.open(filepath, "wb") as f:
         await f.write(content)
-    return f"/uploads/{filename}"
+    path = f"/uploads/{filename}"
+    base = settings.api_base_url.rstrip("/")
+    return f"{base}{path}"
 
 
 @upload_router.post("")
@@ -47,7 +49,11 @@ async def upload_image(
             url = await cloudinary_storage.upload_image(content, kind=upload_kind)
             return {"url": url, "storage": "cloudinary"}
         except Exception as exc:
-            logger.warning("Cloudinary upload failed, using local storage: %s", exc)
+            logger.error("Cloudinary upload failed: %s", exc)
+            raise HTTPException(
+                502,
+                "Photo upload failed. Cloudinary is required so authorities can view your image.",
+            ) from exc
 
     url = await _save_local(content, ext)
     return {"url": url, "storage": "local", "filename": Path(url).name}

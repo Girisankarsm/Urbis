@@ -21,6 +21,16 @@ class GeoArea:
     municipality: str
     lat: float
     lng: float
+    district: str = ""
+    suburb: str = ""
+    postcode: str = ""
+
+
+def _first(*values: str | None) -> str:
+    for value in values:
+        if value and str(value).strip():
+            return str(value).strip()
+    return ""
 
 
 async def reverse_geocode(lat: float, lng: float) -> GeoArea:
@@ -31,7 +41,7 @@ async def reverse_geocode(lat: float, lng: float) -> GeoArea:
         "addressdetails": 1,
         "zoom": 14,
     }
-    headers = {"User-Agent": "Urbis-CivicApp/1.0 (hackathon demo)"}
+    headers = {"User-Agent": "Urbis-CivicApp/1.0 (civic complaint routing)"}
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -51,30 +61,39 @@ async def reverse_geocode(lat: float, lng: float) -> GeoArea:
         )
 
     address = data.get("address") or {}
-    city = (
-        address.get("city")
-        or address.get("town")
-        or address.get("village")
-        or address.get("suburb")
-        or address.get("county")
-        or ""
+    suburb = _first(address.get("suburb"), address.get("neighbourhood"), address.get("quarter"))
+    district = _first(
+        address.get("state_district"),
+        address.get("county"),
+        address.get("city_district"),
     )
-    state = address.get("state") or address.get("region") or ""
-    country = address.get("country") or ""
-    municipality = (
-        address.get("municipality")
-        or address.get("city_district")
-        or address.get("borough")
-        or city
-        or "Local Municipality"
+    city = _first(
+        address.get("city"),
+        address.get("town"),
+        address.get("village"),
+        suburb,
+        district,
     )
+    state = _first(address.get("state"), address.get("region"))
+    country = _first(address.get("country"))
+    municipality = _first(
+        address.get("municipality"),
+        address.get("city_district"),
+        address.get("borough"),
+        city,
+        "Local Municipality",
+    )
+    postcode = _first(address.get("postcode"))
 
     return GeoArea(
         display_name=data.get("display_name", f"{lat}, {lng}"),
         city=city,
+        district=district,
+        suburb=suburb,
         state=state,
         country=country,
         municipality=municipality,
+        postcode=postcode,
         lat=lat,
         lng=lng,
     )

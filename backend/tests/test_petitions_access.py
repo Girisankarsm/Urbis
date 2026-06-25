@@ -54,3 +54,28 @@ async def test_oauth_mode_blocks_other_users_petition(oauth_client: AsyncClient)
     token = create_session_token(user_id="user-1", email="a@example.com", name="A")
     response = await oauth_client.get("/api/petitions/petition-b", cookies={COOKIE_NAME: token})
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_delete_own_petition(oauth_client: AsyncClient):
+    db = get_db()
+    await db.users.insert_one({"_id": "user-1", "email": "a@example.com", "name": "A"})
+    await _seed_petition(petition_id="petition-a", reporter_user_id="user-1")
+    await db.activity_log.insert_one({"petition_id": "petition-a", "event_type": "created", "message": "test"})
+
+    token = create_session_token(user_id="user-1", email="a@example.com", name="A")
+    response = await oauth_client.delete("/api/petitions/petition-a", cookies={COOKIE_NAME: token})
+    assert response.status_code == 200
+    assert await db.petitions.count_documents({"_id": "petition-a"}) == 0
+    assert await db.activity_log.count_documents({"petition_id": "petition-a"}) == 0
+
+
+@pytest.mark.asyncio
+async def test_cannot_delete_other_users_petition(oauth_client: AsyncClient):
+    db = get_db()
+    await db.users.insert_one({"_id": "user-1", "email": "a@example.com", "name": "A"})
+    await _seed_petition(petition_id="petition-b", reporter_user_id="user-2")
+
+    token = create_session_token(user_id="user-1", email="a@example.com", name="A")
+    response = await oauth_client.delete("/api/petitions/petition-b", cookies={COOKIE_NAME: token})
+    assert response.status_code == 403

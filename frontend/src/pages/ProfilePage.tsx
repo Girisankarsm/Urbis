@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { listMyPetitions } from '../api/client'
+import { deletePetition, listMyPetitions } from '../api/client'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -18,6 +18,7 @@ export function ProfilePage() {
   const { user, loading: authLoading, googleEnabled } = useAuth()
   const [petitions, setPetitions] = useState<Petition[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -27,6 +28,24 @@ export function ProfilePage() {
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [user])
+
+  const handleDelete = async (petition: Petition) => {
+    const sent = petition.status === 'submitted' || petition.status === 'escalated'
+    const message = sent
+      ? 'This report was already emailed to the authority. Delete it from your profile anyway?'
+      : 'Delete this report from your profile? This cannot be undone.'
+    if (!window.confirm(message)) return
+
+    setDeletingId(petition.id)
+    try {
+      await deletePetition(petition.id)
+      setPetitions((prev) => prev.filter((p) => p.id !== petition.id))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Could not delete report')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   if (!authLoading && googleEnabled && !user) {
     return (
@@ -149,10 +168,10 @@ export function ProfilePage() {
               ) : (
                 <ul className="divide-y divide-slate-100">
                   {petitions.map((p) => (
-                    <li key={p.id}>
+                    <li key={p.id} className="flex gap-2 items-stretch py-4 first:pt-0 last:pb-0">
                       <Link
                         to={`/petitions/${p.id}`}
-                        className="flex gap-4 py-4 first:pt-0 last:pb-0 hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors group"
+                        className="flex gap-4 flex-1 min-w-0 hover:bg-slate-50 -mx-2 px-2 rounded-xl transition-colors group"
                       >
                         <img
                           src={p.photo_url}
@@ -180,6 +199,15 @@ export function ProfilePage() {
                           →
                         </span>
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p)}
+                        disabled={deletingId === p.id}
+                        className="shrink-0 self-center px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-xl hover:bg-red-50 disabled:opacity-50"
+                        title="Delete report"
+                      >
+                        {deletingId === p.id ? '…' : 'Delete'}
+                      </button>
                     </li>
                   ))}
                 </ul>

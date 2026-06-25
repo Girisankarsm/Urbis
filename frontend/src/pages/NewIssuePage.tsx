@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { createPetition, uploadPhoto } from '../api/client'
+import { createPetition, fetchAuthMe, uploadPhoto } from '../api/client'
 import { FormLabel, FormSection, PhotoUploadZone, useFormReveal } from '../components/form/FormFields'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { MapPicker } from '../components/MapPicker'
@@ -21,6 +21,7 @@ export function NewIssuePage() {
   const [lat, setLat] = useState(DEFAULT_LAT)
   const [lng, setLng] = useState(DEFAULT_LNG)
   const [submitting, setSubmitting] = useState(false)
+  const [submitStep, setSubmitStep] = useState('')
   const [error, setError] = useState('')
   const [descFocused, setDescFocused] = useState(false)
 
@@ -44,18 +45,35 @@ export function NewIssuePage() {
     }
     setSubmitting(true)
     setError('')
+    setSubmitStep('')
     try {
+      if (googleEnabled) {
+        try {
+          await fetchAuthMe()
+        } catch {
+          setError('Your session expired. Please sign in again from the welcome page.')
+          return
+        }
+      }
+      setSubmitStep('Uploading photo…')
       const photo_url = await uploadPhoto(file)
+      setSubmitStep('Classifying issue & drafting complaint email…')
       const { petition } = await createPetition({
         photo_url,
         location: { address, lat, lng },
         description,
       })
+      if (!petition.complaint_email_draft) {
+        setError('Draft was not created. Please try again.')
+        return
+      }
       navigate(`/approvals/${petition.id}`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit')
+      const message = err instanceof Error ? err.message : 'Failed to submit'
+      setError(message.includes('Sign in') ? `${message} — go to the welcome page and sign in again.` : message)
     } finally {
       setSubmitting(false)
+      setSubmitStep('')
     }
   }
 
@@ -137,7 +155,7 @@ export function NewIssuePage() {
             {submitting ? (
               <>
                 <span className="form-submit-spinner" aria-hidden />
-                <span>Analyzing & drafting complaint…</span>
+                <span>{submitStep || 'Analyzing & drafting complaint…'}</span>
               </>
             ) : (
               'Submit & Review Draft'

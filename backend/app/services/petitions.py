@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
+import asyncio
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -88,6 +89,19 @@ async def get_petition(db: AsyncIOMotorDatabase, petition_id: str) -> dict | Non
     return _serialize(doc) if doc else None
 
 
+async def delete_petition(db: AsyncIOMotorDatabase, petition_id: str) -> bool:
+    result = await db.petitions.delete_one({"_id": petition_id})
+    if result.deleted_count == 0:
+        try:
+            result = await db.petitions.delete_one({"_id": ObjectId(petition_id)})
+        except Exception:
+            pass
+    if result.deleted_count == 0:
+        return False
+    await db.activity_log.delete_many({"petition_id": petition_id})
+    return True
+
+
 async def get_activity(db: AsyncIOMotorDatabase, petition_id: str) -> list[dict]:
     cursor = db.activity_log.find({"petition_id": petition_id}).sort("timestamp", 1)
     return [_serialize(doc) async for doc in cursor]
@@ -115,9 +129,12 @@ async def create_and_process_petition(
         "area_info": {
             "display_name": area.display_name,
             "city": area.city,
+            "district": area.district,
+            "suburb": area.suburb,
             "municipality": area.municipality,
             "state": area.state,
             "country": area.country,
+            "postcode": area.postcode,
         },
         "status": PetitionStatus.DRAFT.value,
         "lemma_powered": False,
@@ -133,48 +150,6 @@ async def create_and_process_petition(
 
     classification = lookup_authority(area, req.description)
 
-    if lemma_service.is_lemma_available():
-        try:
-            lemma_powered = True
-            lemma_class = await lemma_service.classify_with_lemma(
-                petition_id=petition_id,
-                photo_url=req.photo_url,
-                description=req.description,
-                lat=req.location.lat,
-                lng=req.location.lng,
-                address=req.location.address,
-                area_display=area.display_name,
-                city=area.city,
-                municipality=area.municipality,
-                state=area.state,
-                country=area.country,
-            )
-            classification = merge_lemma_classification(lemma_class, area, req.description)
-            await log_activity(
-                db,
-                petition_id,
-                "classified",
-                f"[Lemma agent] {classification.reasoning}",
-                {**classification.model_dump(), "lemma": True},
-            )
-        except Exception as exc:
-            logger.warning("Lemma classifier failed, using local authority lookup: %s", exc)
-            await log_activity(
-                db,
-                petition_id,
-                "classified",
-                f"[Fallback] {classification.reasoning}",
-                classification.model_dump(),
-            )
-    else:
-        await log_activity(
-            db,
-            petition_id,
-            "classified",
-            classification.reasoning,
-            classification.model_dump(),
-        )
-
     draft = draft_complaint_email(
         classification.issue_type,
         classification.department,
@@ -186,9 +161,60 @@ async def create_and_process_petition(
         city=area.city,
     )
 
+    lemma_powered = False
     if lemma_service.is_lemma_available():
         try:
-            lemma_draft = await lemma_service.draft_email_with_lemma(petition_id=petition_id)
+            lemma_class = await asyncio.wait_for(
+                lemma_service.classify_with_lemma(
+                    petition_id=petition_id,
+                    photo_url=req.photo_url,
+                    description=req.description,
+                    lat=req.location.lat,
+                    lng=req.location.lng,
+                    address=req.location.address,
+                    area_display=area.display_name,
+                    city=area.city,
+                    municipality=area.municipality,
+                    district=area.district,
+                    suburb=area.suburb,
+                    state=area.state,
+                    country=area.country,
+                ),
+                timeout=settings.lemma_agent_timeout_seconds,
+            )
+            classification = merge_lemma_classification(lemma_class, area, req.description)
+            lemma_powered = True
+            await log_activity(
+                db,
+                petition_id,
+                "classified",
+                f"[Lemma agent] {classification.reasoning}",
+                {**classification.model_dump(), "lemma": True},
+            )
+        except Exception as exc:
+            logger.warning("Lemma classifier failed or timed out, using local authority lookup: %s", exc)
+            await log_activity(
+                db,
+                petition_id,
+                "classified",
+                f"[Local routing] {classification.reasoning}",
+                classification.model_dump(),
+            )
+    else:
+        await log_activity(
+            db,
+            petition_id,
+            "classified",
+            classification.reasoning,
+            classification.model_dump(),
+        )
+
+    if lemma_service.is_lemma_available():
+        try:
+            lemma_draft = await asyncio.wait_for(
+                lemma_service.draft_email_with_lemma(petition_id=petition_id),
+                timeout=settings.lemma_agent_timeout_seconds,
+            )
             if lemma_draft.get("subject") and lemma_draft.get("body"):
                 draft = EmailDraft(
                     subject=lemma_draft["subject"],
@@ -197,7 +223,7 @@ async def create_and_process_petition(
                 )
                 lemma_powered = True
         except Exception as exc:
-            logger.warning("Lemma drafter failed, using local draft: %s", exc)
+            logger.warning("Lemma drafter failed or timed out, using local draft: %s", exc)
 
     await db.petitions.update_one(
         {"_id": petition_id},
@@ -236,8 +262,13 @@ async def approve_and_send(
         return petition
 
     to_email = petition.get("department_email") or settings.demo_email_to
+    intended_to = to_email
+    if settings.use_demo_email_redirect:
+        to_email = settings.demo_email_to
+
     sent = False
     send_message = ""
+    send_from = settings.smtp_from
 
     if sender and sender.get("google_refresh_token") and sender.get("email"):
         try:
@@ -249,19 +280,25 @@ async def approve_and_send(
                 body=req.body,
             )
             if sent:
+                send_from = sender["email"]
                 send_message = f"Email sent from {sender['email']} via Gmail"
+                if settings.use_demo_email_redirect and intended_to != to_email:
+                    send_message += f" (demo delivery to {to_email}; authority: {intended_to})"
         except Exception as exc:
             logger.warning("Gmail send failed, trying fallbacks: %s", exc)
 
     if not sent and lemma_service.is_lemma_available() and petition.get("lemma_powered"):
         try:
-            result = await lemma_service.send_email_with_lemma(
-                petition_id=petition_id,
-                subject=req.subject,
-                body=req.body,
-                to_email=to_email,
-                approved=True,
-                is_escalation=req.is_escalation,
+            result = await asyncio.wait_for(
+                lemma_service.send_email_with_lemma(
+                    petition_id=petition_id,
+                    subject=req.subject,
+                    body=req.body,
+                    to_email=to_email,
+                    approved=True,
+                    is_escalation=req.is_escalation,
+                ),
+                timeout=settings.lemma_agent_timeout_seconds,
             )
             sent = bool(result.get("email_sent"))
             send_message = result.get("message", "")
@@ -270,7 +307,12 @@ async def approve_and_send(
 
     if not sent:
         sent = send_email(to_email, req.subject, req.body)
-        send_message = "Email sent via SMTP" if sent else "Email logged (configure SMTP in .env)"
+        if sent:
+            send_message = f"Email sent via SMTP from {settings.smtp_from}"
+            if settings.use_demo_email_redirect and intended_to != to_email:
+                send_message += f" (demo delivery; authority: {intended_to})"
+        else:
+            send_message = "Email logged (configure SMTP in .env)"
     now = datetime.now(timezone.utc)
 
     if req.is_escalation:
@@ -298,9 +340,26 @@ async def approve_and_send(
             msg = f"{msg} — {send_message}"
 
     await db.petitions.update_one({"_id": petition_id}, {"$set": updates})
-    await log_activity(db, petition_id, event, msg, {"to": to_email, "smtp_sent": sent, "from": sender.get("email") if sender else settings.smtp_from})
+    await log_activity(
+        db,
+        petition_id,
+        event,
+        msg,
+        {
+            "to": to_email,
+            "intended_to": intended_to,
+            "smtp_sent": sent,
+            "from": send_from,
+            "demo_redirect": settings.use_demo_email_redirect,
+        },
+    )
 
-    return (await get_petition(db, petition_id)) or {}
+    result_petition = (await get_petition(db, petition_id)) or {}
+    result_petition["email_sent"] = sent
+    result_petition["sent_to"] = to_email
+    result_petition["intended_to"] = intended_to
+    result_petition["send_message"] = send_message
+    return result_petition
 
 
 async def upload_follow_up(

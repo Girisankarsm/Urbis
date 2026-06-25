@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "urbis@demo.local"
     demo_email_to: str = "municipal-demo@example.com"
+    demo_email_redirect: bool = False
+    lemma_agent_timeout_seconds: int = 25
     escalation_days: int = 3
     openai_api_key: str = ""
 
@@ -54,6 +56,13 @@ class Settings(BaseSettings):
             if normalized in {"lax", "strict", "none"}:
                 return normalized
         return "lax"
+
+    @field_validator("demo_email_redirect", mode="before")
+    @classmethod
+    def parse_demo_email_redirect(cls, value: object) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes"}
+        return bool(value)
 
     @property
     def lemma_enabled(self) -> bool:
@@ -98,6 +107,15 @@ class Settings(BaseSettings):
         if self.is_production and self.cookie_samesite == "lax":
             return "none"
         return self.cookie_samesite
+
+    @property
+    def use_demo_email_redirect(self) -> bool:
+        """In development, send to DEMO_EMAIL_TO so citizens can verify delivery."""
+        if self.is_production:
+            return False
+        if not self.demo_email_redirect:
+            return False
+        return bool(self.demo_email_to and self.demo_email_to != "municipal-demo@example.com")
 
 
 settings = Settings()

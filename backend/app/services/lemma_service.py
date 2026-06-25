@@ -103,6 +103,8 @@ async def classify_with_lemma(
     area_display: str,
     city: str,
     municipality: str,
+    district: str = "",
+    suburb: str = "",
     state: str,
     country: str,
 ) -> dict[str, Any]:
@@ -115,7 +117,8 @@ Coordinates: {lat}, {lng}
 Address hint: {address or area_display}
 Area: {area_display}
 City: {city}
-Municipality: {municipality}
+District: {district or municipality}
+Suburb/locality: {suburb or address}
 State: {state}
 Country: {country}
 

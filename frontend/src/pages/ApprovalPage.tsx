@@ -119,8 +119,21 @@ export function ApprovalDetailPage() {
     if (!id) return
     setSubmitting(true)
     try {
-      await approvePetition(id, { subject, body, approved, is_escalation: isEscalation })
-      navigate(`/petitions/${id}`)
+      const result = await approvePetition(id, { subject, body, approved, is_escalation: isEscalation })
+      if (!approved) {
+        navigate(`/petitions/${id}`)
+        return
+      }
+      if (result.email_sent) {
+        const note = result.send_message || `Complaint sent to ${result.sent_to}`
+        navigate(`/petitions/${id}`, { state: { flash: note } })
+      } else {
+        alert(
+          result.send_message ||
+            'Email could not be sent. Sign in with Google (for Gmail) or check Brevo SMTP in .env.',
+        )
+        navigate(`/petitions/${id}`)
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed')
     } finally {
@@ -153,6 +166,9 @@ export function ApprovalDetailPage() {
         {user?.email && (
           <span className="block text-sm mt-1 text-civic-700">From: <strong>{user.email}</strong> (your Gmail)</span>
         )}
+        <span className="block text-xs mt-2 text-slate-500">
+          Approving sends from your Gmail to the municipal contact below.
+        </span>
       </p>
 
       <div className="grid md:grid-cols-2 gap-6">
