@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ComponentType, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { WelcomeLoader } from '../components/WelcomeLoader'
+import { WelcomeBlobs } from '../components/welcome/WelcomeBlobs'
+import { CivicBuildingIcon, HeroDoodle, STEP_ICONS } from '../components/welcome/WelcomeIcons'
 import { useAuth } from '../context/AuthContext'
+import { useInView } from '../hooks/useInView'
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled. Add your email as a test user in Google Cloud Console if the app is in Testing mode.',
@@ -11,27 +14,22 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
 
 const STEPS = [
   {
-    icon: '📸',
     title: 'Report the issue',
     description: 'Photograph a pothole, garbage pile, broken streetlight, or other civic problem and pin the location on the map.',
   },
   {
-    icon: '🤖',
     title: 'AI classifies & drafts',
     description: 'Urbis identifies the issue type, routes it to the right municipal department, and drafts a formal complaint email.',
   },
   {
-    icon: '✅',
     title: 'You approve before sending',
     description: 'Review and edit the AI-drafted email. Nothing is sent without your explicit approval — human-in-the-loop by design.',
   },
   {
-    icon: '📧',
     title: 'Complaint goes to authority',
     description: 'The email is sent from your Gmail to the municipal contact for your area (e.g. BBMP, BMC).',
   },
   {
-    icon: '📊',
     title: 'Track resolution',
     description: 'Follow petition status on your dashboard, upload follow-up photos, and escalate if nothing changes.',
   },
@@ -43,6 +41,10 @@ export function WelcomePage() {
   const [authError, setAuthError] = useState('')
   const [contentReady, setContentReady] = useState(false)
   const [loaderPhase, setLoaderPhase] = useState<'loading' | 'exiting' | 'done'>('loading')
+
+  const heroRef = useInView<HTMLElement>(0.08)
+  const stepsRef = useInView<HTMLElement>(0.06)
+  const ctaRef = useInView<HTMLElement>(0.1)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -58,8 +60,8 @@ export function WelcomePage() {
     const exitTimer = setTimeout(() => {
       setContentReady(true)
       setLoaderPhase('exiting')
-    }, 350)
-    const doneTimer = setTimeout(() => setLoaderPhase('done'), 900)
+    }, 400)
+    const doneTimer = setTimeout(() => setLoaderPhase('done'), 1000)
     return () => {
       clearTimeout(exitTimer)
       clearTimeout(doneTimer)
@@ -73,131 +75,196 @@ export function WelcomePage() {
       {loaderPhase !== 'done' && <WelcomeLoader exiting={loaderPhase === 'exiting'} />}
 
       <div
-        className={`relative min-h-screen flex flex-col bg-gradient-to-b from-civic-900 via-civic-800 to-slate-50 transition-opacity duration-700 ${
+        className={`relative min-h-screen flex flex-col bg-stone-100 transition-opacity duration-700 ease-out ${
           contentReady ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        {/* Hero background accents */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 left-1/4 w-72 h-72 rounded-full bg-civic-500/10 blur-3xl" />
-          <div className="absolute top-40 right-1/4 w-56 h-56 rounded-full bg-sky-300/10 blur-3xl" />
-        </div>
+        <WelcomeBlobs />
 
-        <header className="relative px-4 sm:px-6 py-6 animate-welcome-fade-up">
-          <div className="max-w-4xl mx-auto flex items-center gap-3 text-white">
-            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur border border-white/20 flex items-center justify-center text-2xl shadow-lg">
-              🏛️
+        <header className="relative px-4 sm:px-8 lg:px-12 py-5 sm:py-7">
+          <div className="max-w-5xl mx-auto flex items-center gap-3 text-white">
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-[1rem] bg-white/10 backdrop-blur-sm border border-white/15 flex items-center justify-center text-warm-200">
+              <CivicBuildingIcon className="w-6 h-6 sm:w-7 sm:h-7" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Urbis</h1>
-              <p className="text-sm text-civic-100">Citizen civic-issue reporting</p>
+              <h1 className="text-[clamp(1.25rem,3vw,1.5rem)] font-semibold tracking-tight">Urbis</h1>
+              <p className="text-sm text-civic-100/85">Citizen civic-issue reporting</p>
             </div>
           </div>
         </header>
 
-        <main className="relative flex-1 px-4 sm:px-6 pb-12">
-          <div className="max-w-4xl mx-auto">
+        <main className="relative flex-1 px-4 sm:px-8 lg:px-12 pb-10 sm:pb-16">
+          <div className="max-w-5xl mx-auto">
+            {/* Hero */}
             <section
-              className="text-center text-white mb-10 pt-4 animate-welcome-fade-up"
-              style={{ animationDelay: '0.1s' }}
+              ref={heroRef.ref}
+              className={`mb-10 sm:mb-14 pt-2 sm:pt-6 welcome-reveal ${heroRef.inView ? 'welcome-reveal-visible' : ''}`}
             >
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium text-civic-100 mb-5 backdrop-blur-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Civic tech · Powered by Lemma SDK
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-bold mb-4 leading-tight">
-                Report civic issues.
-                <br />
-                <span className="text-civic-200">Get them fixed.</span>
-              </h2>
-              <p className="text-civic-100 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-                Photograph problems, draft complaints with AI, and send them to the right municipal authority —
-                with you in control every step of the way.
-              </p>
+              <div className="flex flex-col lg:flex-row lg:items-center lg:gap-12 xl:gap-16">
+                <div className="text-center lg:text-left flex-1">
+                  <span className="welcome-badge inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-xs font-medium text-civic-50 mb-5 sm:mb-6 backdrop-blur-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-warm-400 welcome-badge-pulse" />
+                    Civic tech · Powered by Lemma SDK
+                  </span>
+                  <h2 className="text-[clamp(1.875rem,5vw,3rem)] font-semibold text-white mb-4 leading-[1.15] tracking-tight">
+                    Report civic issues.
+                    <br />
+                    <span className="text-warm-200">Get them fixed.</span>
+                  </h2>
+                  <p className="text-[clamp(1rem,2.2vw,1.2rem)] text-civic-100/90 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                    Photograph problems, draft complaints with AI, and send them to the right municipal authority —
+                    with you in control every step of the way.
+                  </p>
+                </div>
+                <div className="hidden sm:flex justify-center lg:justify-end flex-shrink-0 mt-8 lg:mt-0">
+                  <HeroDoodle className="w-44 lg:w-52 xl:w-56 text-white/35 welcome-icon-float" />
+                </div>
+              </div>
+              <div className="flex sm:hidden justify-center mt-6">
+                <HeroDoodle className="w-36 text-white/30 welcome-icon-float" />
+              </div>
             </section>
 
+            {/* Steps */}
             <section
-              className="bg-white/95 backdrop-blur rounded-3xl shadow-2xl border border-white/50 p-6 sm:p-10 mb-8 animate-welcome-fade-up"
-              style={{ animationDelay: '0.2s' }}
+              ref={stepsRef.ref}
+              className={`bg-white/92 backdrop-blur-sm rounded-[1.75rem] sm:rounded-[2rem] shadow-[0_8px_40px_-12px_rgba(12,74,110,0.15)] border border-white/80 p-5 sm:p-8 lg:p-10 mb-6 sm:mb-8 welcome-reveal ${stepsRef.inView ? 'welcome-reveal-visible' : ''}`}
+              style={{ transitionDelay: '80ms' }}
             >
-              <h3 className="text-lg font-semibold text-civic-900 mb-2 text-center">How Urbis works</h3>
-              <p className="text-sm text-slate-500 text-center mb-8">Five steps from photo to resolution</p>
-              <ol className="grid gap-4 sm:grid-cols-2">
+              <h3 className="text-[clamp(1.05rem,2.5vw,1.2rem)] font-semibold text-civic-900 mb-1 text-center sm:text-left">
+                How Urbis works
+              </h3>
+              <p className="text-sm text-slate-500 mb-6 sm:mb-8 text-center sm:text-left">
+                Five steps from photo to resolution
+              </p>
+
+              <ol className="grid grid-cols-1 md:grid-cols-6 gap-3 sm:gap-4">
                 {STEPS.map((step, index) => (
-                  <li
+                  <StepCard
                     key={step.title}
-                    className={`group flex gap-4 p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-civic-200 hover:shadow-md transition-all duration-300 ${
-                      index === STEPS.length - 1 ? 'sm:col-span-2 sm:max-w-md sm:mx-auto sm:w-full' : ''
-                    }`}
-                  >
-                    <div className="shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-civic-600 to-civic-800 text-white flex items-center justify-center text-lg shadow-md group-hover:scale-105 transition-transform">
-                      {step.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-civic-600">
-                          Step {index + 1}
-                        </span>
-                      </div>
-                      <h4 className="font-semibold text-civic-900 mb-1">{step.title}</h4>
-                      <p className="text-sm text-slate-600 leading-relaxed">{step.description}</p>
-                    </div>
-                  </li>
+                    index={index}
+                    title={step.title}
+                    description={step.description}
+                    Icon={STEP_ICONS[index]}
+                    animate={stepsRef.inView}
+                  />
                 ))}
               </ol>
             </section>
 
+            {/* CTA */}
             <section
-              className="bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8 text-center animate-welcome-fade-up"
-              style={{ animationDelay: '0.35s' }}
+              ref={ctaRef.ref}
+              className={`bg-white rounded-[1.75rem] sm:rounded-[2rem] border border-stone-200/80 shadow-[0_4px_24px_-8px_rgba(12,74,110,0.1)] p-6 sm:p-8 lg:p-10 text-center welcome-reveal ${ctaRef.inView ? 'welcome-reveal-visible' : ''}`}
+              style={{ transitionDelay: '160ms' }}
             >
               {authError && (
-                <div className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-left">
+                <div className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200/80 rounded-[1rem] px-4 py-3 text-left">
                   {authError}
                 </div>
               )}
-              <h3 className="text-xl font-bold text-civic-900 mb-2">
+              <h3 className="text-[clamp(1.15rem,2.8vw,1.35rem)] font-semibold text-civic-900 mb-2">
                 {signedIn ? 'Welcome back' : 'Ready to get started?'}
               </h3>
-              <p className="text-slate-600 text-sm mb-6 max-w-md mx-auto">
+              <p className="text-slate-600 text-[clamp(0.875rem,2vw,0.95rem)] mb-7 sm:mb-8 max-w-md mx-auto leading-relaxed">
                 {signedIn
                   ? `Signed in as ${user?.email}. Head to your dashboard to track petitions or report a new issue.`
                   : googleEnabled
                     ? 'Sign in with Google so complaints are sent from your Gmail to the municipal authority.'
                     : 'Continue to the app and report your first civic issue.'}
               </p>
+
               {signedIn ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard')}
-                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-civic-600 to-civic-700 text-white rounded-xl font-semibold hover:from-civic-700 hover:to-civic-800 shadow-lg shadow-civic-600/25 hover:shadow-civic-600/40 transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  Go to dashboard →
-                </button>
+                <WelcomeButton onClick={() => navigate('/dashboard')}>
+                  Go to dashboard
+                  <ArrowIcon />
+                </WelcomeButton>
               ) : googleEnabled ? (
                 <button
                   type="button"
                   onClick={login}
-                  className="inline-flex items-center gap-3 px-8 py-3.5 bg-white border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5"
+                  className="welcome-btn-secondary inline-flex items-center justify-center gap-3 min-h-[48px] px-7 sm:px-8 py-3.5 rounded-[1.1rem] font-medium text-civic-900"
                 >
                   <GoogleIcon />
                   Sign in with Google
                 </button>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => navigate('/dashboard')}
-                  className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-civic-600 to-civic-700 text-white rounded-xl font-semibold hover:from-civic-700 hover:to-civic-800 shadow-lg shadow-civic-600/25 transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  Get started →
-                </button>
+                <WelcomeButton onClick={() => navigate('/dashboard')}>
+                  Get started
+                  <ArrowIcon />
+                </WelcomeButton>
               )}
-              <p className="mt-6 text-xs text-slate-400">Gappy AI Hackathon · Human-in-the-loop civic reporting</p>
+
+              <p className="mt-6 sm:mt-7 text-xs text-slate-400">
+                Gappy AI Hackathon · Human-in-the-loop civic reporting
+              </p>
             </section>
           </div>
         </main>
       </div>
     </>
+  )
+}
+
+function StepCard({
+  index,
+  title,
+  description,
+  Icon,
+  animate,
+}: {
+  index: number
+  title: string
+  description: string
+  Icon: ComponentType<{ className?: string }>
+  animate: boolean
+}) {
+  const colClass =
+    index < 3 ? 'md:col-span-2' : 'md:col-span-3'
+
+  return (
+    <li
+      className={`welcome-step-card group flex gap-3.5 sm:gap-4 p-4 sm:p-5 rounded-[1.25rem] sm:rounded-[1.35rem] border border-stone-100 bg-stone-50/60 ${colClass} ${
+        animate ? 'welcome-step-visible' : ''
+      }`}
+      style={{ transitionDelay: animate ? `${index * 100}ms` : '0ms' }}
+    >
+      <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-[1rem] bg-civic-50 border border-civic-100/80 text-civic-700 flex items-center justify-center welcome-icon-float">
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+      </div>
+      <div className="min-w-0 text-left">
+        <span className="text-[10px] sm:text-[11px] font-medium uppercase tracking-wider text-warm-600/90">
+          Step {index + 1}
+        </span>
+        <h4 className="font-semibold text-civic-900 mt-0.5 mb-1 text-[clamp(0.95rem,2vw,1.05rem)]">{title}</h4>
+        <p className="text-sm text-slate-600 leading-relaxed">{description}</p>
+      </div>
+    </li>
+  )
+}
+
+function WelcomeButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="welcome-btn-primary group inline-flex items-center justify-center gap-2 min-h-[48px] px-7 sm:px-8 py-3.5 rounded-[1.1rem] font-medium text-white">
+      {children}
+    </button>
+  )
+}
+
+function ArrowIcon() {
+  return (
+    <svg
+      className="w-4 h-4 transition-transform duration-500 ease-out group-hover:translate-x-1"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 8h10M9 4l4 4-4 4" />
+    </svg>
   )
 }
 

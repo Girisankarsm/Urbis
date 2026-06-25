@@ -55,7 +55,7 @@ export function Layout() {
         </div>
       </header>
       <main className="flex-1 w-full">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        <div className="max-w-6xl mx-auto px-[clamp(1rem,3vw,1.5rem)] py-[clamp(1.75rem,4vw,2.5rem)]">
           {authError && (
             <div className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
               {authError}
@@ -75,11 +75,15 @@ function NavLink({ to, children, active }: { to: string; children: React.ReactNo
   return (
     <Link
       to={to}
-      className={`px-2.5 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-        active ? 'bg-civic-700 text-white' : 'text-civic-100 hover:bg-civic-800 hover:text-white'
+      className={`nav-link relative px-2.5 sm:px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors duration-200 ease-out ${
+        active ? 'text-white' : 'text-civic-100/90 hover:text-white'
       }`}
     >
       {children}
+      <span
+        className={`nav-link-indicator ${active ? 'nav-link-indicator--active' : ''}`}
+        aria-hidden
+      />
     </Link>
   )
 }
