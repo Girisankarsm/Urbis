@@ -6,12 +6,12 @@ from __future__ import annotations
 IssueContacts = dict[str, tuple[str, str]]
 
 _GCC = {
-    "pothole": ("Greater Chennai Corporation — Roads", "gcccomplaints@gccservices.in"),
-    "garbage": ("Greater Chennai Corporation — Sanitation", "gcccomplaints@gccservices.in"),
-    "streetlight": ("Greater Chennai Corporation — Electrical", "gcccomplaints@gccservices.in"),
-    "water_leak": ("Chennai Metrowater", "metrowater@chennaimetrorail.org"),
-    "sewage": ("Greater Chennai Corporation — Sewerage", "gcccomplaints@gccservices.in"),
-    "other": ("Greater Chennai Corporation — Control Room", "gcccomplaints@gccservices.in"),
+    "pothole": ("Greater Chennai Corporation — Roads", "sebrr@chennaicorporation.gov.in"),
+    "garbage": ("Greater Chennai Corporation — Sanitation", "seswm@chennaicorporation.gov.in"),
+    "streetlight": ("Greater Chennai Corporation — Electrical", "seelectrical@chennaicorporation.gov.in"),
+    "water_leak": ("Chennai Metro Water (CMWSSB)", "cmwssb@tn.gov.in"),
+    "sewage": ("Greater Chennai Corporation — Storm Water Drains", "seswd@chennaicorporation.gov.in"),
+    "other": ("Greater Chennai Corporation — Commissioner", "commissioner@chennaicorporation.gov.in"),
 }
 
 _BBMP = {
@@ -373,12 +373,12 @@ METRO_ALIASES: dict[str, list[str]] = {
 # State-level fallback when city is not in the database (India)
 INDIA_STATE_CONTACTS: dict[str, IssueContacts] = {
     "tamil nadu": {
-        "pothole": ("Tamil Nadu Municipal Administration — Roads", "gcccomplaints@gccservices.in"),
-        "garbage": ("Tamil Nadu ULB — Sanitation", "gcccomplaints@gccservices.in"),
-        "streetlight": ("Tamil Nadu ULB — Electrical", "gcccomplaints@gccservices.in"),
-        "water_leak": ("Tamil Nadu Water Supply", "metrowater@chennaimetrorail.org"),
-        "sewage": ("Tamil Nadu ULB — Sewerage", "gcccomplaints@gccservices.in"),
-        "other": ("Tamil Nadu Urban Local Bodies", "gcccomplaints@gccservices.in"),
+        "pothole": ("Tamil Nadu Municipal Administration — Roads", "sebrr@chennaicorporation.gov.in"),
+        "garbage": ("Tamil Nadu ULB — Sanitation", "seswm@chennaicorporation.gov.in"),
+        "streetlight": ("Tamil Nadu ULB — Electrical", "seelectrical@chennaicorporation.gov.in"),
+        "water_leak": ("Tamil Nadu Water Supply (CMWSSB)", "cmwssb@tn.gov.in"),
+        "sewage": ("Tamil Nadu ULB — Storm Water Drains", "seswd@chennaicorporation.gov.in"),
+        "other": ("Tamil Nadu Urban Local Bodies", "commissioner@chennaicorporation.gov.in"),
     },
     "karnataka": {
         "pothole": ("Karnataka Municipal Administration", "complaints@bbmp.gov.in"),

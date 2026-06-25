@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { deletePetition, listMyPetitions } from '../api/client'
+import { deletePetition, listMyPetitions, loginUrl } from '../api/client'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -113,8 +113,21 @@ export function ProfilePage() {
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${user.can_send_gmail ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  {user.can_send_gmail ? 'Gmail connected' : 'Brevo email fallback'}
+                  {user.can_send_gmail ? 'Gmail connected' : 'Gmail not connected'}
                 </span>
+                {!user.can_send_gmail && (
+                  <a
+                    href={loginUrl(true)}
+                    className="mt-4 inline-flex items-center justify-center px-4 py-2.5 bg-civic-600 text-white rounded-xl text-sm font-medium hover:bg-civic-700"
+                  >
+                    Connect Gmail
+                  </a>
+                )}
+                {!user.can_send_gmail && (
+                  <p className="mt-3 text-xs text-amber-800 leading-relaxed">
+                    Complaints are sent from your Gmail so they appear in your Sent folder. Sign in again to grant send access.
+                  </p>
+                )}
               </div>
 
               <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-3 gap-2">

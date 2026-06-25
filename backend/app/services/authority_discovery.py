@@ -31,6 +31,7 @@ BLOCKED_DOMAINS = frozenset(
         "sentry.io",
         "w3.org",
         "schema.org",
+        "gccservices.in",
     }
 )
 BLOCKED_LOCALPARTS = frozenset({"noreply", "no-reply", "donotreply", "mailer-daemon"})
@@ -88,6 +89,8 @@ def _score_email(email: str, area: GeoArea, issue_type: str) -> float:
 
     if email_l.endswith(".gov.in"):
         score += 6.0
+    elif email_l.endswith("@chennaicorporation.gov.in"):
+        score += 7.0
     elif email_l.endswith(".nic.in"):
         score += 5.0
     elif ".gov." in email_l or email_l.endswith(".gov"):

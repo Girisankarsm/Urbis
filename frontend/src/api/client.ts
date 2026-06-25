@@ -15,8 +15,10 @@ export function apiBaseUrl(): string {
   return API_BASE
 }
 
-export function loginUrl(): string {
-  return `${API_BASE}/api/auth/google`
+export function loginUrl(reconnect = false): string {
+  return reconnect
+    ? `${API_BASE}/api/auth/google?reconnect=1`
+    : `${API_BASE}/api/auth/google`
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

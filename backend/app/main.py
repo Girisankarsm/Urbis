@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.services.lemma_service import is_lemma_available, lemma_token_status, verify_lemma_api
 from app.database import close_db, connect_db
 from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
@@ -63,18 +64,24 @@ app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads"
 
 @app.get("/api/health")
 async def health():
+    lemma = await verify_lemma_api()
+    lemma_ok = bool(lemma.get("token_valid") and lemma.get("api_reachable"))
     return {
         "status": "ok",
         "app": "Urbis",
         "environment": settings.environment,
         "lemma_connected": settings.lemma_enabled,
+        "lemma_token_valid": lemma_ok,
+        "lemma_token_type": lemma.get("token_type"),
+        "lemma_expires_at": lemma.get("expires_at"),
+        "lemma_status": "ok" if lemma_ok else lemma.get("reason", "Lemma not verified"),
         "smtp_configured": bool(settings.smtp_host),
         "email_mode": (
             "lemma_gmail_or_smtp"
-            if settings.lemma_enabled
-            else ("smtp" if settings.smtp_host else "log_only")
+            if lemma_ok
+            else ("gmail" if settings.google_auth_enabled else "smtp" if settings.smtp_host else "log_only")
         ),
-        "authority_lookup": "geocoding + regional contacts" + (" + lemma agents" if settings.lemma_enabled else ""),
+        "authority_lookup": "geocoding + regional contacts" + (" + lemma agents" if lemma_ok else ""),
         "google_auth_enabled": settings.google_auth_enabled,
         "cloudinary_configured": settings.cloudinary_enabled,
         "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
@@ -84,16 +91,24 @@ async def health():
     }
 
 
+@app.get("/api/health/lemma")
+async def lemma_health():
+    return await verify_lemma_api()
+
+
 @app.get("/api/setup")
 async def setup_status():
     missing = []
     if not settings.lemma_enabled:
         missing.append("Lemma: set LEMMA_TOKEN and LEMMA_POD_ID, then run lemma pods import ./pod/civic-lens")
+    elif not is_lemma_available():
+        missing.append("Lemma: session token expired — run `lemma auth login` and update LEMMA_TOKEN in .env")
     if not settings.smtp_host:
         missing.append("SMTP: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD for real email delivery")
     return {
-        "ready_for_full_demo": settings.lemma_enabled and bool(settings.smtp_host),
+        "ready_for_full_demo": is_lemma_available() and bool(settings.smtp_host),
         "lemma_connected": settings.lemma_enabled,
+        "lemma_token_valid": is_lemma_available(),
         "smtp_configured": bool(settings.smtp_host),
         "missing": missing,
         "lemma_setup": [

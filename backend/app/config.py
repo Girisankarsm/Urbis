@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     cloudinary_folder: str = "urbis"
 
     lemma_token: str = ""
+    lemma_refresh_token: str = ""
     lemma_pod_id: str = ""
     lemma_org_id: str = ""
     lemma_base_url: str = "https://api.lemma.work"

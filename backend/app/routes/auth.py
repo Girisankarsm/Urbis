@@ -51,7 +51,14 @@ async def google_login(request: Request):
     if not _auth_enabled():
         raise HTTPException(503, "Google OAuth is not configured")
     redirect_uri = settings.google_redirect_uri
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    # Explicit consent + offline access so Google returns a refresh_token for Gmail send.
+    return await oauth.google.authorize_redirect(
+        request,
+        redirect_uri,
+        prompt="consent",
+        access_type="offline",
+        include_granted_scopes="true",
+    )
 
 
 @router.get("/google/callback")
@@ -73,11 +80,18 @@ async def google_callback(request: Request):
     if not userinfo:
         userinfo = await oauth.google.userinfo(token=token)
 
+    refresh_token = token.get("refresh_token")
+    if not refresh_token:
+        logger.warning(
+            "Google OAuth returned no refresh_token for %s — Gmail send will not work until reconnect",
+            userinfo.get("email"),
+        )
+
     db = get_db()
     user = await upsert_google_user(
         db,
         userinfo=userinfo,
-        refresh_token=token.get("refresh_token"),
+        refresh_token=refresh_token,
     )
 
     session_token = create_session_token(

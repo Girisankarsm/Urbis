@@ -152,7 +152,8 @@ async def create_and_process_petition(
     classification = lookup_authority(area, req.description)
     authority_source = classification.authority_source
 
-    if settings.authority_discovery_enabled:
+    # Web search only when the local registry has no verified contact (avoids bad scraped emails).
+    if settings.authority_discovery_enabled and not classification.department_email:
         try:
             discovered = await discover_with_timeout(
                 area,
@@ -306,10 +307,44 @@ async def approve_and_send(
     sent = False
     send_message = ""
     send_from = settings.smtp_from
+    sent_via = ""
 
-    if sender and sender.get("google_refresh_token") and sender.get("email"):
+    if settings.google_auth_enabled and sender:
+        refresh_token = (sender.get("google_refresh_token") or "").strip()
+        if not refresh_token:
+            raise ValueError(
+                "Gmail is not connected. Open Profile → Connect Gmail, sign in again, "
+                "then approve and send so the email appears in your Sent folder."
+            )
+        if not sender.get("email"):
+            raise ValueError("Your Google account email is missing — sign in again from Profile.")
+
         try:
-            sent = await send_gmail_as_user(
+            sent, gmail_error = await send_gmail_as_user(
+                refresh_token=refresh_token,
+                from_email=sender["email"],
+                to_email=to_email,
+                subject=req.subject,
+                body=req.body,
+            )
+        except Exception as exc:
+            logger.warning("Gmail send failed: %s", exc)
+            raise ValueError(
+                "Gmail send failed. Open Profile → Connect Gmail to re-authorize, then try again."
+            ) from exc
+
+        if not sent:
+            raise ValueError(gmail_error or "Gmail send failed. Try again from Profile → Connect Gmail.")
+
+        send_from = sender["email"]
+        sent_via = "gmail"
+        send_message = f"Email sent from {sender['email']} via Gmail"
+        if settings.use_demo_email_redirect and intended_to != to_email:
+            send_message += f" (demo delivery to {to_email}; authority: {intended_to})"
+
+    elif sender and sender.get("google_refresh_token") and sender.get("email"):
+        try:
+            sent, _gmail_error = await send_gmail_as_user(
                 refresh_token=sender["google_refresh_token"],
                 from_email=sender["email"],
                 to_email=to_email,
@@ -318,6 +353,7 @@ async def approve_and_send(
             )
             if sent:
                 send_from = sender["email"]
+                sent_via = "gmail"
                 send_message = f"Email sent from {sender['email']} via Gmail"
                 if settings.use_demo_email_redirect and intended_to != to_email:
                     send_message += f" (demo delivery to {to_email}; authority: {intended_to})"
@@ -345,6 +381,7 @@ async def approve_and_send(
     if not sent:
         sent = send_email(to_email, req.subject, req.body)
         if sent:
+            sent_via = "smtp"
             send_message = f"Email sent via SMTP from {settings.smtp_from}"
             if settings.use_demo_email_redirect and intended_to != to_email:
                 send_message += f" (demo delivery; authority: {intended_to})"
@@ -387,6 +424,7 @@ async def approve_and_send(
             "intended_to": intended_to,
             "smtp_sent": sent,
             "from": send_from,
+            "sent_via": sent_via or ("gmail" if sent and sender else "smtp" if sent else ""),
             "demo_redirect": settings.use_demo_email_redirect,
         },
     )

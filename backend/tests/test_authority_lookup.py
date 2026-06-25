@@ -32,7 +32,7 @@ def test_lookup_authority_urapakkam_pothole():
     result = lookup_authority(area, "large pothole on the road")
     assert result.issue_type == "pothole"
     assert "GCC" in result.department or "Chennai" in result.department
-    assert result.department_email == "gcccomplaints@gccservices.in"
+    assert result.department_email == "sebrr@chennaicorporation.gov.in"
 
 
 def test_lookup_authority_pune_garbage():

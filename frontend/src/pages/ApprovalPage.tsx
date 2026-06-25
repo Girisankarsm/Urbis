@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { approvePetition, getPetition, getPendingApprovals } from '../api/client'
+import {
+  AreaIcon,
+  BackArrowIcon,
+  BuildingIcon,
+  PinIcon,
+  SourceIcon,
+  TypeTagIcon,
+  VerifyDotIcon,
+} from '../components/approval/ApprovalIcons'
+import { approvePetition, getPetition, getPendingApprovals, loginUrl } from '../api/client'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { StatusBadge } from '../components/StatusBadge'
 import { useAuth } from '../context/AuthContext'
@@ -75,7 +84,7 @@ function ApprovalCard({ petition, type }: { petition: Petition; type: 'complaint
   return (
     <Link
       to={`/approvals/${petition.id}${type === 'escalation' ? '?escalation=1' : ''}`}
-      className="flex gap-4 bg-white border rounded-xl p-4 hover:shadow-md"
+      className="flex gap-4 bg-white border rounded-xl p-4 hover:shadow-md transition-shadow duration-200 ease-out"
     >
       <img src={petition.photo_url} alt="" className="w-16 h-16 object-cover rounded-lg" />
       <div>
@@ -84,6 +93,26 @@ function ApprovalCard({ petition, type }: { petition: Petition; type: 'complaint
         <p className="text-sm text-slate-500">{petition.department}</p>
       </div>
     </Link>
+  )
+}
+
+function MetaRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: ComponentType<{ className?: string }>
+  label: string
+  value: ReactNode
+}) {
+  return (
+    <div className="approval-meta-row">
+      <Icon className="approval-meta-icon" />
+      <div className="min-w-0">
+        <dt className="approval-meta-label">{label}</dt>
+        <dd className="approval-meta-value">{value}</dd>
+      </div>
+    </div>
   )
 }
 
@@ -100,6 +129,7 @@ export function ApprovalDetailPage() {
   const [toEmail, setToEmail] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [sendingAction, setSendingAction] = useState<'approve' | 'reject' | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -117,9 +147,27 @@ export function ApprovalDetailPage() {
     })
   }, [id, isEscalation])
 
+  const bodyWordCount = useMemo(
+    () => body.trim().split(/\s+/).filter(Boolean).length,
+    [body],
+  )
+
+  const locationLabel =
+    petition?.location?.address ||
+    (petition?.location?.lat != null
+      ? `${petition.location.lat}, ${petition.location.lng}`
+      : '—')
+
   const handleApprove = async (approved: boolean) => {
     if (!id) return
+    if (approved && googleEnabled && user && !user.can_send_gmail) {
+      alert(
+        'Gmail is not connected. Open Profile → Connect Gmail, sign in again, then return here to send.',
+      )
+      return
+    }
     setSubmitting(true)
+    setSendingAction(approved ? 'approve' : 'reject')
     try {
       const result = await approvePetition(id, {
         subject,
@@ -146,6 +194,7 @@ export function ApprovalDetailPage() {
       alert(err instanceof Error ? err.message : 'Failed')
     } finally {
       setSubmitting(false)
+      setSendingAction(null)
     }
   }
 
@@ -162,94 +211,167 @@ export function ApprovalDetailPage() {
   if (!petition) return <p className="text-red-600">Not found</p>
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <Link to="/approvals" className="text-sm text-civic-600 hover:underline mb-4 inline-block">
-        ← Back to approvals
+    <div className="approval-page max-w-5xl mx-auto px-[clamp(0.25rem,2vw,0.5rem)]">
+      <Link to="/approvals" className="approval-breadcrumb">
+        <BackArrowIcon className="w-4 h-4 shrink-0" />
+        Back to approvals
       </Link>
-      <h2 className="text-2xl font-bold text-civic-900 mb-2">
-        {isEscalation ? 'Review Escalation Email' : 'Review Complaint Email'}
-      </h2>
-      <p className="text-slate-600 mb-6">
-        Human-in-the-loop: edit the AI draft before sending.
-        {user?.email && (
-          <span className="block text-sm mt-1 text-civic-700">From: <strong>{user.email}</strong> (your Gmail)</span>
-        )}
-        <span className="block text-xs mt-2 text-slate-500">
-          Verify the recipient email below — Urbis finds it via web search from your map location.
-        </span>
-      </p>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-2xl border p-4 space-y-3">
-          <h3 className="font-semibold">Issue Evidence</h3>
-          <img src={petition.photo_url} alt="Issue" className="w-full rounded-xl" />
-            <dl className="text-sm space-y-1">
-            <div><dt className="text-slate-500 inline">Type: </dt><dd className="inline capitalize">{petition.issue_type?.replace('_', ' ')}</dd></div>
-            <div><dt className="text-slate-500 inline">Department: </dt><dd className="inline">{petition.department}</dd></div>
+      <header className="approval-header-lead">
+        <h2 className="text-2xl font-bold text-civic-900 mb-2">
+          {isEscalation ? 'Review Escalation Email' : 'Review Complaint Email'}
+        </h2>
+        <p className="text-slate-600 leading-relaxed">
+          Human-in-the-loop: edit the AI draft before sending.
+        </p>
+        <div className="approval-header-meta">
+          {user?.email && (
+            <p className="text-sm text-civic-800">
+              <span className="text-slate-500">From:</span>{' '}
+              <strong className="font-semibold text-civic-900">{user.email}</strong>
+              {user.can_send_gmail ? (
+                <span className="text-slate-500"> (your Gmail)</span>
+              ) : (
+                <span className="text-amber-700"> — Gmail not connected</span>
+              )}
+            </p>
+          )}
+          {googleEnabled && user && !user.can_send_gmail && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="font-medium">Connect Gmail before sending</p>
+              <p className="mt-1 text-amber-800">
+                Urbis sends complaints from your Gmail so they show up in your Sent folder.
+              </p>
+              <a
+                href={loginUrl(true)}
+                className="mt-2 inline-flex text-sm font-semibold text-civic-700 hover:text-civic-900 underline"
+              >
+                Connect Gmail →
+              </a>
+            </div>
+          )}
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Verify the recipient email below — Urbis finds it via web search from your map location.
+          </p>
+        </div>
+      </header>
+
+      <div className="approval-grid">
+        <section className="approval-panel approval-panel-evidence" aria-labelledby="evidence-heading">
+          <h3 id="evidence-heading" className="font-semibold text-civic-900 mb-4">
+            Issue Evidence
+          </h3>
+          <img src={petition.photo_url} alt="Issue evidence" className="approval-photo" />
+          <dl className="approval-meta-grid">
+            <MetaRow
+              icon={TypeTagIcon}
+              label="Type"
+              value={<span className="capitalize">{petition.issue_type?.replace('_', ' ') || '—'}</span>}
+            />
+            <MetaRow icon={BuildingIcon} label="Department" value={petition.department || '—'} />
             {petition.authority_source && (
-              <div>
-                <dt className="text-slate-500 inline">Contact source: </dt>
-                <dd className="inline capitalize">{petition.authority_source.replace('_', ' ')}</dd>
-              </div>
+              <MetaRow
+                icon={SourceIcon}
+                label="Contact source"
+                value={<span className="capitalize">{petition.authority_source.replace('_', ' ')}</span>}
+              />
             )}
             {petition.area_info?.display_name && (
-              <div><dt className="text-slate-500 inline">Area: </dt><dd className="inline">{petition.area_info.display_name}</dd></div>
+              <MetaRow icon={AreaIcon} label="Area" value={petition.area_info.display_name} />
             )}
-            <div><dt className="text-slate-500 inline">Location: </dt><dd className="inline">{petition.location?.address || `${petition.location?.lat}, ${petition.location?.lng}`}</dd></div>
+            <MetaRow icon={PinIcon} label="Location" value={locationLabel} />
             {petition.lemma_powered && (
-              <div><dt className="text-slate-500 inline">Powered by: </dt><dd className="inline text-civic-600">Lemma SDK agents</dd></div>
+              <MetaRow icon={SourceIcon} label="Powered by" value={<span className="text-civic-700">Lemma SDK agents</span>} />
             )}
           </dl>
-        </div>
+        </section>
 
-        <div className="bg-white rounded-2xl border p-4 space-y-4">
-          <h3 className="font-semibold">Email Draft</h3>
-          <div>
-            <label className="text-sm font-medium">To (municipal authority)</label>
-            <input
-              type="email"
-              value={toEmail}
-              onChange={(e) => setToEmail(e.target.value)}
-              placeholder="secretary@tmcofficials.in"
-              className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono"
-              required
-            />
+        <section className="approval-panel approval-panel-draft" aria-labelledby="draft-heading">
+          <h3 id="draft-heading" className="font-semibold text-civic-900 mb-4">
+            Email Draft
+          </h3>
+
+          <div className="space-y-[clamp(1rem,3vw,1.25rem)]">
+            <div>
+              <label htmlFor="approval-to" className="approval-field-label">
+                To (municipal authority)
+              </label>
+              <input
+                id="approval-to"
+                type="email"
+                value={toEmail}
+                onChange={(e) => setToEmail(e.target.value)}
+                placeholder="secretary@tmcofficials.in"
+                className="approval-input approval-input-mono"
+                autoComplete="off"
+                spellCheck={false}
+                required
+              />
+              <p className="approval-hint-verify">
+                <VerifyDotIcon className="approval-hint-verify-dot" />
+                Auto-filled from your location — please verify before sending
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="approval-subject" className="approval-field-label">
+                Subject
+              </label>
+              <input
+                id="approval-subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="approval-input"
+              />
+            </div>
+
+            <div>
+              <div className="approval-field-label">
+                <label htmlFor="approval-body">Body</label>
+                <span className="approval-badge-ai">AI-drafted — please review</span>
+              </div>
+              <textarea
+                id="approval-body"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={14}
+                className="approval-input approval-input-mono approval-textarea"
+              />
+              <p className="approval-body-count mt-2 text-right">
+                {bodyWordCount} {bodyWordCount === 1 ? 'word' : 'words'}
+              </p>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium">Subject</label>
-            <input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm mt-1"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Body</label>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={14}
-              className="w-full border rounded-lg px-3 py-2 text-sm mt-1 font-mono"
-            />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => handleApprove(true)}
-              disabled={submitting || !toEmail.trim()}
-              className="flex-1 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {submitting ? 'Sending…' : '✓ Approve & Send'}
-            </button>
-            <button
-              onClick={() => handleApprove(false)}
-              disabled={submitting}
-              className="px-4 py-2.5 border border-red-300 text-red-700 rounded-xl font-medium hover:bg-red-50"
-            >
-              Reject
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
+
+      <footer className="approval-footer" role="group" aria-label="Approval actions">
+        <div className="approval-footer-inner">
+          <button
+            type="button"
+            onClick={() => handleApprove(false)}
+            disabled={submitting}
+            className="approval-btn-reject"
+          >
+            {sendingAction === 'reject' ? 'Rejecting…' : 'Reject'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleApprove(true)}
+            disabled={submitting || !toEmail.trim()}
+            className={`approval-btn-primary w-full sm:w-auto ${sendingAction === 'approve' ? 'is-sending' : ''}`}
+          >
+            {sendingAction === 'approve' ? (
+              <>
+                <span className="approval-send-spinner" aria-hidden />
+                Sending…
+              </>
+            ) : (
+              '✓ Approve & Send'
+            )}
+          </button>
+        </div>
+      </footer>
     </div>
   )
 }
