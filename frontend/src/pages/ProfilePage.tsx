@@ -137,15 +137,6 @@ export function ProfilePage() {
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <h4 className="text-sm font-semibold text-slate-900">Quick links</h4>
-            <nav className="flex flex-col gap-1">
-              <ProfileLink to="/dashboard" label="Dashboard" description="All petitions overview" />
-              <ProfileLink to="/new" label="Report issue" description="Submit a new complaint" />
-              <ProfileLink to="/approvals" label="Approvals" description="Review pending emails" />
-            </nav>
-          </div>
         </div>
 
         {/* Right column — reports */}
@@ -239,20 +230,5 @@ function StatCard({ label, value }: { label: string; value: number }) {
       <p className="text-xl font-bold text-civic-900 tabular-nums">{value}</p>
       <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wide mt-0.5">{label}</p>
     </div>
-  )
-}
-
-function ProfileLink({ to, label, description }: { to: string; label: string; description: string }) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-50 transition-colors group"
-    >
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-slate-900 group-hover:text-civic-700">{label}</p>
-        <p className="text-xs text-slate-500">{description}</p>
-      </div>
-      <span className="text-slate-300 group-hover:text-civic-500 shrink-0">→</span>
-    </Link>
   )
 }
