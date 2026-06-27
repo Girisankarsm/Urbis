@@ -13,6 +13,14 @@ import { ProfilePage } from './pages/ProfilePage'
 import { WelcomePage } from './pages/WelcomePage'
 import './index.css'
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // PWA optional — app works without service worker
+    })
+  })
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

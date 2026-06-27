@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 import type { AuthUser } from '../context/AuthContext'
+import { usePwaInstall } from '../hooks/usePwaInstall'
 
 function ProfileIcon({ className }: { className?: string }) {
   return (
@@ -18,6 +19,7 @@ export function UserMenu({ user, onLogout }: { user: AuthUser; onLogout: () => v
   const navigate = useNavigate()
   const location = useLocation()
   const onProfile = location.pathname === '/profile'
+  const { install, showInstall } = usePwaInstall()
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -31,6 +33,11 @@ export function UserMenu({ user, onLogout }: { user: AuthUser; onLogout: () => v
     setOpen(false)
     await onLogout()
     navigate('/')
+  }
+
+  const handleInstall = async () => {
+    setOpen(false)
+    await install()
   }
 
   return (
@@ -72,6 +79,16 @@ export function UserMenu({ user, onLogout }: { user: AuthUser; onLogout: () => v
             <p className="font-semibold text-sm truncate">{user.name || 'Citizen'}</p>
             <p className="text-xs text-slate-500 truncate">{user.email}</p>
           </div>
+          {showInstall && (
+            <button
+              type="button"
+              onClick={handleInstall}
+              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-civic-700 hover:bg-civic-50 border-b border-slate-100"
+              role="menuitem"
+            >
+              Install app
+            </button>
+          )}
           <button
             type="button"
             onClick={handleLogout}
