@@ -108,7 +108,7 @@ Draft complaints and pending escalations for the current user.
 Petition detail + activity timeline.
 
 **Extended fields in response:**
-- `vision_classification`, `severity_score`, `severity_level`, `ai_explanations`
+- `vision_classification`, `severity_score`, `severity_level`, `severity_explanation`, `infrastructure`, `ai_explanations`
 
 ### `POST /api/petitions`
 
@@ -213,6 +213,24 @@ Find stale petitions and draft escalation emails.
 
 ---
 
+## Infrastructure
+
+### `GET /api/infrastructure/nearby`
+
+Fetch map markers for schools, hospitals, bus stops, and stations near a point (cached Overpass).
+
+**Query:** `lat`, `lng`, optional `radius_m`
+
+**Response:**
+```json
+{
+  "markers": [{ "category": "school", "icon": "school", "lat": 12.97, "lng": 77.59, "name": "...", "distance_m": 180 }],
+  "source": "cache"
+}
+```
+
+---
+
 ## Analytics
 
 All analytics endpoints are read-only and require no authentication in development.
@@ -240,6 +258,16 @@ Most common issue types.
 ### `GET /api/analytics/departments`
 
 Department performance: total complaints, resolved count, resolution rate, avg severity.
+
+### `GET /api/analytics/infrastructure`
+
+Infrastructure-aware analytics.
+
+**Query:** `proximity_m` (default 500), `high_risk_threshold` (default 25)
+
+**Response fields:** `complaints_near_schools`, `complaints_near_hospitals`, `severity_by_school_proximity`, `high_risk_zones`, `avg_severity_near_schools`, `avg_severity_near_hospitals`
+
+`GET /api/analytics/summary` also includes an `infrastructure` object with the same data.
 
 ---
 

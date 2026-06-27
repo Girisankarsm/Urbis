@@ -39,7 +39,7 @@ def build_ai_explanations(
         explanations["severity_analysis"] = {
             "severity_score": severity.get("severity_score"),
             "severity_level": severity.get("severity_level"),
-            "reasoning": severity.get("reasoning"),
+            "reasoning": severity.get("severity_explanation") or severity.get("reasoning"),
             "factors": severity.get("factors", {}),
         }
 

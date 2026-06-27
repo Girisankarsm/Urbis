@@ -6,6 +6,7 @@ from app.services.analytics import (
     common_issue_types,
     complaint_trends,
     department_performance,
+    infrastructure_analytics,
     resolution_time_stats,
     severity_distribution,
 )
@@ -47,3 +48,16 @@ async def get_issue_types(limit: int = Query(10, ge=1, le=50)):
 async def get_department_performance():
     db = get_db()
     return {"items": await department_performance(db)}
+
+
+@router.get("/infrastructure")
+async def get_infrastructure_analytics(
+    proximity_m: int = Query(500, ge=50, le=2000),
+    high_risk_threshold: float = Query(25, ge=0),
+):
+    db = get_db()
+    return await infrastructure_analytics(
+        db,
+        proximity_m=proximity_m,
+        high_risk_threshold=high_risk_threshold,
+    )

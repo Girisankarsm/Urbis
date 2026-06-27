@@ -49,6 +49,13 @@ export interface Petition {
   }
   severity_score?: number
   severity_level?: string
+  severity_explanation?: string
+  infrastructure?: {
+    distance_to_school?: number | null
+    distance_to_hospital?: number | null
+    infra_score?: number
+    source?: string
+  }
   ai_explanations?: {
     vision_classification?: { issue_type?: string; confidence?: number; reasoning?: string }
     authority_routing?: { explanation?: string; reasoning?: string; authority_source?: string }

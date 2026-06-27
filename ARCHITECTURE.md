@@ -37,10 +37,39 @@ React SPA (Vite)  →  FastAPI REST API  →  MongoDB (primary store)
 | Analytics | `services/analytics.py` | Aggregation queries |
 | Security | `services/security.py` | Upload validation, magic bytes |
 | Image optimization | `services/image_optimization.py` | Resize/compress before storage |
+| **Infrastructure** | `services/infrastructure/` | Overpass fetch, cache, distance, map markers |
+| **Infra severity** | `services/severity/infra_severity.py` | Distance-decayed scoring formula |
 | Lemma integration | `services/lemma_service.py` | Agents, functions, token refresh |
 | Authority routing | `authority_lookup.py`, `authority_discovery.py` | Registry + web search |
 
 ## Petition creation pipeline
+
+```
+POST /api/petitions
+  1. Reverse geocode (Nominatim)
+  2. Vision classify photo (optional)
+  3. Authority routing (registry → web search → Lemma)
+  4. Draft complaint email
+  5. Infrastructure analysis (cached Overpass → distance-decayed severity)
+  6. Build AI explanations + severity_explanation
+  7. Save to MongoDB (status: draft)
+```
+
+## Infrastructure analysis
+
+| Component | Path | Role |
+|-----------|------|------|
+| Overpass fetch | `infrastructure/overpass_service.py` | Combined query, 8s timeout, mirror fallback |
+| Cache | `infrastructure/cache.py` | Mongo `overpass_cache`, TTL 7 days, key `overpass:lat:lng:radius` |
+| Distance | `infrastructure/distance_utils.py` | Haversine, classify, nearest-per-category |
+| Scoring | `severity/infra_severity.py` | `weight × exp(-distance/decay)` formula |
+| Config | `infrastructure/infrastructure_scoring.json` | radius, alpha, weights (hot-editable) |
+
+On Overpass failure: `{ data: null, source: 'unavailable' }` — report continues with base severity only.
+
+---
+
+## Petition creation pipeline (legacy detail)
 
 ```
 POST /api/petitions
@@ -62,6 +91,8 @@ POST /api/petitions
 | `severity_level` | string | `low`, `moderate`, `high`, `critical` |
 | `severity_factors` | object | POI boosts and factor breakdown |
 | `ai_explanations` | object | Vision, authority, severity explanations |
+| `infrastructure` | object | Distances, infra_score, contributions, source |
+| `severity_explanation` | string | Traceable severity reason from contributions |
 | `resolution_verdict` | object | `{status, resolved, confidence, reasoning, source}` |
 
 ## Follow-up resolution pipeline

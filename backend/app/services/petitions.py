@@ -306,6 +306,7 @@ async def create_and_process_petition(
     severity_result: dict | None = None
     try:
         severity_result = await analyze_severity(
+            db,
             issue_type=classification.issue_type,
             lat=req.location.lat,
             lng=req.location.lng,
@@ -340,6 +341,10 @@ async def create_and_process_petition(
         update_fields["severity_score"] = severity_result["severity_score"]
         update_fields["severity_level"] = severity_result["severity_level"]
         update_fields["severity_factors"] = severity_result.get("factors", {})
+        if severity_result.get("severity_explanation"):
+            update_fields["severity_explanation"] = severity_result["severity_explanation"]
+        if severity_result.get("infrastructure") is not None:
+            update_fields["infrastructure"] = severity_result["infrastructure"]
     if ai_explanations:
         update_fields["ai_explanations"] = ai_explanations
 

@@ -118,6 +118,80 @@ async def department_performance(db: AsyncIOMotorDatabase) -> list[dict[str, Any
     return results
 
 
+async def infrastructure_analytics(
+    db: AsyncIOMotorDatabase,
+    *,
+    proximity_m: int = 500,
+    high_risk_threshold: float = 25,
+) -> dict[str, Any]:
+    """Infrastructure-aware analytics extensions."""
+    school_near = await db.petitions.count_documents(
+        {
+            "infrastructure.distance_to_school": {"$lte": proximity_m, "$ne": None},
+        }
+    )
+    hospital_near = await db.petitions.count_documents(
+        {
+            "infrastructure.distance_to_hospital": {"$lte": proximity_m, "$ne": None},
+        }
+    )
+
+    buckets = {"under_100m": [], "100_300m": [], "300_500m": []}
+    async for doc in db.petitions.find(
+        {"infrastructure.distance_to_school": {"$ne": None}, "severity_score": {"$exists": True}},
+        {"severity_score": 1, "infrastructure.distance_to_school": 1},
+    ):
+        dist = doc.get("infrastructure", {}).get("distance_to_school")
+        score = doc.get("severity_score")
+        if dist is None or score is None:
+            continue
+        if dist < 100:
+            buckets["under_100m"].append(score)
+        elif dist < 300:
+            buckets["100_300m"].append(score)
+        elif dist < 500:
+            buckets["300_500m"].append(score)
+
+    def avg(vals: list) -> float | None:
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    high_risk = await db.petitions.count_documents(
+        {"infrastructure.infra_score": {"$gte": high_risk_threshold}}
+    )
+
+    school_scores = []
+    hospital_scores = []
+    async for doc in db.petitions.find(
+        {"severity_score": {"$exists": True}, "infrastructure": {"$exists": True}},
+        {"severity_score": 1, "infrastructure": 1},
+    ):
+        infra = doc.get("infrastructure") or {}
+        score = doc.get("severity_score")
+        if score is None:
+            continue
+        if infra.get("distance_to_school") is not None:
+            school_scores.append(score)
+        if infra.get("distance_to_hospital") is not None:
+            hospital_scores.append(score)
+
+    return {
+        "proximity_radius_m": proximity_m,
+        "complaints_near_schools": school_near,
+        "complaints_near_hospitals": hospital_near,
+        "severity_by_school_proximity": {
+            "under_100m": {"count": len(buckets["under_100m"]), "avg_severity": avg(buckets["under_100m"])},
+            "100_300m": {"count": len(buckets["100_300m"]), "avg_severity": avg(buckets["100_300m"])},
+            "300_500m": {"count": len(buckets["300_500m"]), "avg_severity": avg(buckets["300_500m"])},
+        },
+        "high_risk_zones": {
+            "threshold_infra_score": high_risk_threshold,
+            "count": high_risk,
+        },
+        "avg_severity_near_schools": avg(school_scores),
+        "avg_severity_near_hospitals": avg(hospital_scores),
+    }
+
+
 async def analytics_summary(db: AsyncIOMotorDatabase) -> dict[str, Any]:
     total = await db.petitions.count_documents({})
     by_status = {}
@@ -134,4 +208,5 @@ async def analytics_summary(db: AsyncIOMotorDatabase) -> dict[str, Any]:
         "resolution_time": await resolution_time_stats(db),
         "common_issue_types": await common_issue_types(db),
         "department_performance": await department_performance(db),
+        "infrastructure": await infrastructure_analytics(db),
     }

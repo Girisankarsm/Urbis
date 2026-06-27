@@ -170,6 +170,14 @@ export async function checkDuplicates(data: {
   })
 }
 
+export async function getNearbyInfrastructure(
+  lat: number,
+  lng: number,
+): Promise<{ markers: Array<{ category: string; icon: string; lat: number; lng: number; name?: string }>; source: string }> {
+  const q = new URLSearchParams({ lat: String(lat), lng: String(lng) })
+  return request(`/infrastructure/nearby?${q}`)
+}
+
 export async function getAnalyticsSummary(): Promise<Record<string, unknown>> {
   return request('/analytics/summary')
 }

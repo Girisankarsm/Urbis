@@ -8,6 +8,8 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
+import { InfrastructureMarkerCluster, type InfraMapMarker } from './InfrastructureMarkerCluster'
+
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
@@ -19,6 +21,7 @@ interface MapPickerProps {
   lat: number
   lng: number
   onChange: (lat: number, lng: number) => void
+  infrastructureMarkers?: InfraMapMarker[]
 }
 
 function ClickHandler({ onChange }: { onChange: (lat: number, lng: number) => void }) {
@@ -56,7 +59,7 @@ function createPinIcon(dropAnim: boolean) {
   })
 }
 
-export function MapPicker({ lat, lng, onChange }: MapPickerProps) {
+export function MapPicker({ lat, lng, onChange, infrastructureMarkers = [] }: MapPickerProps) {
   const [position, setPosition] = useState<[number, number]>([lat, lng])
   const [flyKey, setFlyKey] = useState(0)
   const [locating, setLocating] = useState(false)
@@ -140,6 +143,9 @@ export function MapPicker({ lat, lng, onChange }: MapPickerProps) {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           <Marker key={pinDropKey} position={position} icon={pinIcon} />
+          {infrastructureMarkers.length > 0 && (
+            <InfrastructureMarkerCluster markers={infrastructureMarkers} />
+          )}
           <ClickHandler onChange={handleChange} />
           <FlyToLocation lat={position[0]} lng={position[1]} flyKey={flyKey} />
         </MapContainer>

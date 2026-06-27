@@ -109,6 +109,12 @@ export function PetitionDetailPage() {
               {petition.severity_score != null && (
                 <Row label="Severity" value={`${petition.severity_score}/100 (${petition.severity_level || '—'})`} />
               )}
+              {petition.severity_explanation && (
+                <div>
+                  <dt className="text-slate-500">Severity analysis</dt>
+                  <dd className="font-medium text-sm text-slate-700 whitespace-pre-line mt-1">{petition.severity_explanation}</dd>
+                </div>
+              )}
               {petition.resolution_verdict && (
                 <Row
                   label="Resolution"

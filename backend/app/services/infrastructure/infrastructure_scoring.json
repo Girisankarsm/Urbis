@@ -1,0 +1,16 @@
+{
+  "radiusMeters": 500,
+  "alpha": 0.4,
+  "maxInfraScore": 60,
+  "highRiskInfraThreshold": 25,
+  "categories": {
+    "school": { "weight": 20, "decayConstant": 150 },
+    "hospital": { "weight": 25, "decayConstant": 180 },
+    "clinic": { "weight": 12, "decayConstant": 120 },
+    "metro_station": { "weight": 10, "decayConstant": 200 },
+    "railway_station": { "weight": 10, "decayConstant": 250 },
+    "bus_stop": { "weight": 10, "decayConstant": 100 },
+    "government_office": { "weight": 5, "decayConstant": 150 },
+    "major_road": { "weight": 15, "decayConstant": 100 }
+  }
+}

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { checkDuplicates, classifyVision, createPetition, fetchAuthMe, uploadPhoto } from '../api/client'
+import { checkDuplicates, classifyVision, createPetition, fetchAuthMe, getNearbyInfrastructure, uploadPhoto } from '../api/client'
+import type { InfraMapMarker } from '../components/InfrastructureMarkerCluster'
 import { FormLabel, FormSection, PhotoUploadZone, useFormReveal } from '../components/form/FormFields'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { MapPicker } from '../components/MapPicker'
@@ -35,6 +36,7 @@ export function NewIssuePage() {
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
   const [pendingSubmit, setPendingSubmit] = useState(false)
   const uploadedUrlRef = useRef<string | null>(null)
+  const [infraMarkers, setInfraMarkers] = useState<InfraMapMarker[]>([])
 
   const handleFileSelect = (f: File) => {
     if (preview) URL.revokeObjectURL(preview)
@@ -82,6 +84,23 @@ export function NewIssuePage() {
       clearTimeout(timer)
     }
   }, [file, description])
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      getNearbyInfrastructure(lat, lng)
+        .then((data) => {
+          if (!cancelled) setInfraMarkers(data.markers || [])
+        })
+        .catch(() => {
+          if (!cancelled) setInfraMarkers([])
+        })
+    }, 600)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [lat, lng])
 
   const submitPetition = async () => {
     if (!file) return
@@ -259,7 +278,7 @@ export function NewIssuePage() {
 
         <FormSection visible={formVisible} delay={240}>
           <FormLabel required>Location</FormLabel>
-          <MapPicker lat={lat} lng={lng} onChange={(a, b) => { setLat(a); setLng(b) }} />
+          <MapPicker lat={lat} lng={lng} onChange={(a, b) => { setLat(a); setLng(b) }} infrastructureMarkers={infraMarkers} />
         </FormSection>
 
         {duplicateWarning && (

@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     vision_timeout_seconds: int = 30
     vision_enabled: bool = True
     severity_poi_radius_m: int = 500
+    infrastructure_radius_m: int | None = None
+    infrastructure_alpha: float | None = None
     duplicate_radius_m: float = 500.0
     upload_max_bytes: int = 10 * 1024 * 1024
     rate_limit_enabled: bool = True

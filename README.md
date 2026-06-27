@@ -113,7 +113,20 @@ For locations across India, the backend resolves the government contact in this 
 | AI explainability | Stored confidence, reasoning, authority routing context |
 | Duplicate detection | Warns about nearby similar reports before submission |
 | Resolution verification | Before/after image comparison (resolved / partial / not resolved) |
+| **Nearby infrastructure analysis** | Overpass POI lookup, distance-decayed severity, map markers |
 | Analytics API | Trends, severity distribution, resolution time, department stats |
+
+Weights, alpha, and decay constants live in `backend/app/services/infrastructure/infrastructure_scoring.json` (editable without code changes).
+
+---
+
+## Nearby infrastructure analysis
+
+When a report is submitted, the API queries Openpass (with mirror fallback) for schools, hospitals, clinics, bus stops, stations, government offices, and major roads within a configurable radius. Results are cached in MongoDB (`overpass_cache`, 7-day TTL) keyed by rounded lat/lng.
+
+Severity uses distance-decayed scoring: `finalSeverity = base × (1 + α × normalizedInfra)`. Base issue type always dominates. Overpass failures never block report submission.
+
+Map markers (schools, hospitals, bus stops, stations) appear on the report map via Leaflet marker clustering.
 
 ---
 
@@ -182,6 +195,7 @@ Copy `.env.example` to `.env`:
 | `SMTP_*` | Brevo SMTP fallback |
 | `CLOUDINARY_*` | Cloud image storage |
 | `OPENAI_API_KEY` | Optional — vision classification + resolution |
+| `INFRASTRUCTURE_RADIUS_M` | Overpass search radius for severity (default 500) |
 | `SESSION_SECRET` | JWT session signing (required in production) |
 | `DEMO_EMAIL_REDIRECT` | Set `false` to send to real authorities |
 
