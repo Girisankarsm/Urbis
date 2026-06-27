@@ -13,3 +13,4 @@ authlib>=1.3.2
 python-jose[cryptography]>=3.3.0
 itsdangerous>=2.2.0
 cloudinary>=1.41.0
+Pillow>=10.4.0

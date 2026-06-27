@@ -87,6 +87,8 @@ export async function createPetition(data: {
   photo_url: string
   location: { address: string; lat: number; lng: number }
   description: string
+  vision_issue_type_override?: string
+  vision_classification?: { issue_type: string; confidence: number; reasoning: string; source: string }
 }): Promise<{ petition: Petition }> {
   return request('/petitions', {
     method: 'POST',
@@ -133,4 +135,41 @@ export async function getPendingApprovals(): Promise<{
   escalations: Petition[]
 }> {
   return request('/petitions/pending-approvals')
+}
+
+export async function classifyVision(photo_url: string, description = ''): Promise<{
+  classification: { issue_type: string; confidence: number; reasoning: string; source: string }
+  issue_types: string[]
+}> {
+  return request('/vision/classify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ photo_url, description }),
+  })
+}
+
+export async function checkDuplicates(data: {
+  lat: number
+  lng: number
+  issue_type?: string
+  photo_url?: string
+}): Promise<{
+  duplicates: Array<{
+    petition_id: string
+    issue_type: string
+    distance_m: number
+    likelihood: number
+    description?: string
+  }>
+  has_duplicates: boolean
+}> {
+  return request('/petitions/check-duplicates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getAnalyticsSummary(): Promise<Record<string, unknown>> {
+  return request('/analytics/summary')
 }

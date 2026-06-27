@@ -21,6 +21,12 @@ Built for the [Gappy AI Hackathon](https://gappy.ai) using **Lemma SDK** as the 
 | **Profile** | View account, your reports, delete petitions |
 | **Dashboard & tracking** | Filter petitions by status, timeline, follow-up photos |
 | **Escalation** | Auto-draft escalation emails after 3 days without resolution |
+| **AI vision classification** | Auto-detect issue type from photos with confidence + reasoning |
+| **Severity analysis** | 0–100 score using nearby schools, hospitals, traffic, and issue type |
+| **AI explainability** | Stored confidence, reasoning, and authority routing explanations |
+| **Duplicate detection** | Warns about nearby similar reports before submission |
+| **Resolution verification** | Before/after image comparison (resolved / partial / not resolved) |
+| **Analytics API** | Complaint trends, severity distribution, resolution time, department stats |
 | **Cloudinary** | Cloud image storage for production deploys |
 | **Tests & CI** | Pytest + Vitest, GitHub Actions on every push |
 
@@ -54,10 +60,12 @@ When Google OAuth is enabled, users only see **their own** petitions, approvals,
 
 For any location in India (and beyond), the backend resolves the government contact in this order:
 
-1. **Web search** — DuckDuckGo + official site scraping for real municipal emails  
-2. **Lemma `issue-classifier` agent** — WEB_SEARCH + pod knowledge when step 1 fails  
-3. **Regional registry** — 30+ cities, metro suburbs, and state fallbacks  
+1. **Regional registry** — verified `.gov.in` contacts for 30+ Indian cities  
+2. **Web search** — DuckDuckGo when the registry has no email  
+3. **Lemma `issue-classifier` agent** — WEB_SEARCH + pod knowledge when Lemma is connected  
 4. **Manual edit** — citizen corrects the **To** field on the approval screen  
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md) and [API.md](./API.md) for full technical documentation.
 
 ## Architecture
 

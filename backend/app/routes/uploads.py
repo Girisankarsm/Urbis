@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from app.config import settings
 from app.dependencies import get_optional_user
 from app.services import cloudinary_storage
+from app.services.image_optimization import optimize_image
+from app.services.security import sanitize_filename, validate_upload
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +36,12 @@ async def upload_image(
 ):
     if settings.google_auth_enabled and not user:
         raise HTTPException(401, "Sign in with Google to continue")
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(400, "Only image files are allowed")
 
     content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(400, "Image must be under 10 MB")
+    verified_type = await validate_upload(file, content, settings.upload_max_bytes)
+    content, verified_type = optimize_image(content, verified_type)
 
-    ext = Path(file.filename or "photo.jpg").suffix or ".jpg"
+    ext = Path(sanitize_filename(file.filename or "photo.jpg")).suffix or ".jpg"
     upload_kind = "follow-ups" if kind == "follow-up" else "petitions"
 
     if settings.cloudinary_enabled:

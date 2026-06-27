@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { createPetition, fetchAuthMe, uploadPhoto } from '../api/client'
+import { checkDuplicates, classifyVision, createPetition, fetchAuthMe, uploadPhoto } from '../api/client'
 import { FormLabel, FormSection, PhotoUploadZone, useFormReveal } from '../components/form/FormFields'
 import { LoginPrompt } from '../components/LoginPrompt'
 import { MapPicker } from '../components/MapPicker'
@@ -24,25 +24,67 @@ export function NewIssuePage() {
   const [submitStep, setSubmitStep] = useState('')
   const [error, setError] = useState('')
   const [descFocused, setDescFocused] = useState(false)
+  const [visionResult, setVisionResult] = useState<{
+    issue_type: string
+    confidence: number
+    reasoning: string
+    source: string
+  } | null>(null)
+  const [issueTypeOverride, setIssueTypeOverride] = useState('')
+  const [visionLoading, setVisionLoading] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
+  const [pendingSubmit, setPendingSubmit] = useState(false)
+  const uploadedUrlRef = useRef<string | null>(null)
 
   const handleFileSelect = (f: File) => {
     if (preview) URL.revokeObjectURL(preview)
     setFile(f)
     setPreview(URL.createObjectURL(f))
+    setVisionResult(null)
+    setIssueTypeOverride('')
+    uploadedUrlRef.current = null
   }
 
   const handleRemovePhoto = () => {
     if (preview) URL.revokeObjectURL(preview)
     setFile(null)
     setPreview(null)
+    setVisionResult(null)
+    setIssueTypeOverride('')
+    uploadedUrlRef.current = null
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!file) {
-      setError('Please upload a photo of the issue')
-      return
+  useEffect(() => {
+    if (!file) return
+    let cancelled = false
+    const run = async () => {
+      setVisionLoading(true)
+      try {
+        let photoUrl = uploadedUrlRef.current
+        if (!photoUrl) {
+          photoUrl = await uploadPhoto(file)
+          uploadedUrlRef.current = photoUrl
+        }
+        const data = await classifyVision(photoUrl, description)
+        if (!cancelled) {
+          setVisionResult(data.classification)
+          setIssueTypeOverride(data.classification.issue_type)
+        }
+      } catch {
+        if (!cancelled) setVisionResult(null)
+      } finally {
+        if (!cancelled) setVisionLoading(false)
+      }
     }
+    const timer = setTimeout(run, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [file, description])
+
+  const submitPetition = async () => {
+    if (!file) return
     setSubmitting(true)
     setError('')
     setSubmitStep('')
@@ -55,13 +97,23 @@ export function NewIssuePage() {
           return
         }
       }
-      setSubmitStep('Uploading photo…')
-      const photo_url = await uploadPhoto(file)
+      let photo_url = uploadedUrlRef.current
+      if (!photo_url) {
+        setSubmitStep('Uploading photo…')
+        photo_url = await uploadPhoto(file)
+        uploadedUrlRef.current = photo_url
+      }
       setSubmitStep('Classifying issue & drafting complaint email…')
+      const override =
+        issueTypeOverride && visionResult && issueTypeOverride !== visionResult.issue_type
+          ? issueTypeOverride
+          : undefined
       const { petition } = await createPetition({
         photo_url,
         location: { address, lat, lng },
         description,
+        vision_issue_type_override: override,
+        vision_classification: visionResult || undefined,
       })
       if (!petition.complaint_email_draft) {
         setError('Draft was not created. Please try again.')
@@ -74,7 +126,49 @@ export function NewIssuePage() {
     } finally {
       setSubmitting(false)
       setSubmitStep('')
+      setPendingSubmit(false)
+      setDuplicateWarning(null)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!file) {
+      setError('Please upload a photo of the issue')
+      return
+    }
+    if (pendingSubmit) {
+      await submitPetition()
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      let photo_url = uploadedUrlRef.current
+      if (!photo_url) {
+        photo_url = await uploadPhoto(file)
+        uploadedUrlRef.current = photo_url
+      }
+      const dup = await checkDuplicates({
+        lat,
+        lng,
+        issue_type: issueTypeOverride || visionResult?.issue_type,
+        photo_url,
+      })
+      if (dup.has_duplicates) {
+        const first = dup.duplicates[0]
+        setDuplicateWarning(
+          `A similar report exists nearby (${Math.round(first.distance_m)}m away, ${Math.round(first.likelihood * 100)}% match). You can still submit if this is a separate issue.`,
+        )
+        setPendingSubmit(true)
+        return
+      }
+    } catch {
+      // Non-blocking — proceed with submission
+    } finally {
+      setSubmitting(false)
+    }
+    await submitPetition()
   }
 
   if (!authLoading && googleEnabled && !user) {
@@ -104,6 +198,32 @@ export function NewIssuePage() {
         <FormSection visible={formVisible} delay={0}>
           <FormLabel required>Photo of the issue</FormLabel>
           <PhotoUploadZone preview={preview} onFileSelect={handleFileSelect} onRemove={handleRemovePhoto} />
+          {(visionLoading || visionResult) && (
+            <div className="mt-2 text-xs text-slate-500 space-y-1">
+              {visionLoading && <p>Analyzing photo…</p>}
+              {visionResult && (
+                <>
+                  <p>
+                    AI detected: <span className="font-medium text-slate-700 capitalize">{visionResult.issue_type.replace(/_/g, ' ')}</span>
+                    {' '}({Math.round(visionResult.confidence * 100)}% confidence)
+                  </p>
+                  <p className="text-slate-400">{visionResult.reasoning}</p>
+                  <label className="block pt-1">
+                    <span className="sr-only">Override issue type</span>
+                    <select
+                      value={issueTypeOverride}
+                      onChange={(e) => setIssueTypeOverride(e.target.value)}
+                      className="form-input w-full text-xs mt-1"
+                    >
+                      {['pothole', 'garbage', 'streetlight', 'water_leak', 'fallen_tree', 'manhole', 'illegal_dumping', 'road_damage', 'other'].map((t) => (
+                        <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
+          )}
         </FormSection>
 
         <FormSection visible={formVisible} delay={80}>
@@ -142,6 +262,12 @@ export function NewIssuePage() {
           <MapPicker lat={lat} lng={lng} onChange={(a, b) => { setLat(a); setLng(b) }} />
         </FormSection>
 
+        {duplicateWarning && (
+          <p className="text-amber-800 text-sm bg-amber-50 border border-amber-100 rounded-[1rem] px-4 py-3">
+            {duplicateWarning}
+          </p>
+        )}
+
         {error && (
           <p className="text-red-700 text-sm bg-red-50 border border-red-100 rounded-[1rem] px-4 py-3">{error}</p>
         )}
@@ -157,6 +283,8 @@ export function NewIssuePage() {
                 <span className="form-submit-spinner" aria-hidden />
                 <span>{submitStep || 'Analyzing & drafting complaint…'}</span>
               </>
+            ) : pendingSubmit ? (
+              'Continue anyway & submit'
             ) : (
               'Submit & Review Draft'
             )}

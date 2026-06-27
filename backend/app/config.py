@@ -35,6 +35,14 @@ class Settings(BaseSettings):
     lemma_agent_timeout_seconds: int = 25
     escalation_days: int = 3
     openai_api_key: str = ""
+    vision_model: str = "gpt-4o-mini"
+    vision_timeout_seconds: int = 30
+    vision_enabled: bool = True
+    severity_poi_radius_m: int = 500
+    duplicate_radius_m: float = 500.0
+    upload_max_bytes: int = 10 * 1024 * 1024
+    rate_limit_enabled: bool = True
+    rate_limit_requests_per_minute: int = 120
 
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -65,6 +73,15 @@ class Settings(BaseSettings):
     def parse_demo_email_redirect(cls, value: object) -> bool:
         if isinstance(value, str):
             return value.strip().lower() in {"1", "true", "yes"}
+        return bool(value)
+
+    @field_validator("vision_enabled", "rate_limit_enabled", mode="before")
+    @classmethod
+    def parse_bool_flags(cls, value: object) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes"}
+        if value is None:
+            return True
         return bool(value)
 
     @field_validator("authority_discovery_enabled", mode="before")

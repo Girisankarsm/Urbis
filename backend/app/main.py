@@ -16,9 +16,13 @@ from app.services.lemma_service import (
     warm_lemma_token,
 )
 from app.database import close_db, connect_db
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.routes.analytics import router as analytics_router
 from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
 from app.routes.uploads import upload_router
+from app.routes.vision import router as vision_router
+from app.services.mongodb_indexes import ensure_indexes
 from app.services.petitions import seed_departments
 
 logger = logging.getLogger(__name__)
@@ -40,6 +44,10 @@ async def lifespan(app: FastAPI):
     from app.database import get_db
 
     await seed_departments(get_db())
+    try:
+        await ensure_indexes(get_db())
+    except Exception as exc:
+        logger.warning("MongoDB index creation failed: %s", exc)
     Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
     if settings.lemma_enabled:
         try:
@@ -68,10 +76,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
+if settings.rate_limit_enabled:
+    app.add_middleware(
+        RateLimitMiddleware,
+        requests_per_minute=settings.rate_limit_requests_per_minute,
+    )
 
 app.include_router(auth_router)
 app.include_router(petitions_router)
 app.include_router(upload_router)
+app.include_router(vision_router)
+app.include_router(analytics_router)
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
 
@@ -102,6 +117,8 @@ async def health():
         "production_ready": settings.is_production,
         "demo_email_redirect": settings.use_demo_email_redirect,
         "authority_discovery_enabled": settings.authority_discovery_enabled,
+        "vision_enabled": settings.vision_enabled,
+        "rate_limit_enabled": settings.rate_limit_enabled,
     }
 
 

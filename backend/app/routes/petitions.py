@@ -3,8 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_optional_user
-from app.models import ApprovalRequest, CreatePetitionRequest, FollowUpRequest
+from app.models import ApprovalRequest, CheckDuplicatesRequest, CreatePetitionRequest, FollowUpRequest
 from app.services.access import assert_petition_access
+from app.services.duplicate_detection import find_nearby_duplicates
 from app.services.petitions import (
     approve_and_send,
     create_and_process_petition,
@@ -52,6 +53,34 @@ async def pending_approvals(user: dict | None = Depends(get_optional_user)):
         if p.get("escalation_email_draft"):
             escalations.append(p)
     return {"complaints": drafts, "escalations": escalations}
+
+
+@router.post("/check-duplicates")
+async def check_duplicates(
+    req: CheckDuplicatesRequest,
+    user: dict | None = Depends(get_optional_user),
+):
+    if settings.google_auth_enabled and not user:
+        raise HTTPException(401, "Sign in with Google to continue")
+    db = get_db()
+    duplicates = await find_nearby_duplicates(
+        db,
+        lat=req.lat,
+        lng=req.lng,
+        issue_type=req.issue_type,
+        photo_url=req.photo_url,
+    )
+    return {"duplicates": duplicates, "has_duplicates": len(duplicates) > 0}
+
+
+@router.post("/escalation/check")
+async def check_escalation(user: dict | None = Depends(get_optional_user)):
+    db = get_db()
+    reporter_id = _user_filter(user) if settings.google_auth_enabled else None
+    result = await prepare_escalation(db, reporter_user_id=reporter_id)
+    if not result:
+        return {"message": "No stale petitions found", "petition": None}
+    return {"petition": result, "message": "Escalation draft ready for approval"}
 
 
 @router.get("/{petition_id}")
@@ -131,13 +160,3 @@ async def follow_up(
     except ValueError as e:
         raise HTTPException(404, str(e)) from e
     return {"petition": petition}
-
-
-@router.post("/escalation/check")
-async def check_escalation(user: dict | None = Depends(get_optional_user)):
-    db = get_db()
-    reporter_id = _user_filter(user) if settings.google_auth_enabled else None
-    result = await prepare_escalation(db, reporter_user_id=reporter_id)
-    if not result:
-        return {"message": "No stale petitions found", "petition": None}
-    return {"petition": result, "message": "Escalation draft ready for approval"}

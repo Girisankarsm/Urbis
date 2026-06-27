@@ -80,11 +80,11 @@ export function PetitionDetailPage() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border p-4 space-y-4">
           <h3 className="font-semibold">Before</h3>
-          <img src={petition.photo_url} alt="Original" className="w-full rounded-xl" />
+          <img src={petition.photo_url} alt="Original" className="w-full rounded-xl" loading="lazy" />
           {petition.follow_up_photo_url ? (
             <>
               <h3 className="font-semibold">After (follow-up)</h3>
-              <img src={petition.follow_up_photo_url} alt="Follow-up" className="w-full rounded-xl" />
+              <img src={petition.follow_up_photo_url} alt="Follow-up" className="w-full rounded-xl" loading="lazy" />
             </>
           ) : (
             petition.status !== 'draft' && (
@@ -106,11 +106,23 @@ export function PetitionDetailPage() {
               <Row label="Department" value={petition.department || '—'} />
               <Row label="Location" value={petition.location?.address || `${petition.location?.lat}, ${petition.location?.lng}`} />
               <Row label="Description" value={petition.description || '—'} />
+              {petition.severity_score != null && (
+                <Row label="Severity" value={`${petition.severity_score}/100 (${petition.severity_level || '—'})`} />
+              )}
               {petition.resolution_verdict && (
                 <Row
                   label="Resolution"
-                  value={`${petition.resolution_verdict.resolved ? 'Likely resolved' : 'Still open'} (${Math.round(petition.resolution_verdict.confidence * 100)}% confidence)`}
+                  value={`${
+                    petition.resolution_verdict.status === 'partially_resolved'
+                      ? 'Partially resolved'
+                      : petition.resolution_verdict.resolved
+                        ? 'Likely resolved'
+                        : 'Still open'
+                  } (${Math.round(petition.resolution_verdict.confidence * 100)}% confidence)`}
                 />
+              )}
+              {petition.ai_explanations?.authority_routing?.explanation && (
+                <Row label="Authority routing" value={petition.ai_explanations.authority_routing.explanation} />
               )}
             </dl>
           </div>

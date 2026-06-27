@@ -21,8 +21,12 @@ from app.services.authority_discovery import discover_with_timeout
 from app.services.authority_lookup import lookup_authority, merge_lemma_classification
 from app.services.departments import DEPARTMENTS
 from app.services.email import send_email
+from app.services.explainability import build_ai_explanations
 from app.services.geocoding import reverse_geocode
 from app.services.gmail import send_gmail_as_user
+from app.services.resolution_verification import verify_resolution
+from app.services.severity_analysis import analyze_severity
+from app.services.vision_classification import classify_image, normalize_issue_type
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +153,46 @@ async def create_and_process_petition(
     await db.petitions.insert_one(doc)
     await log_activity(db, petition_id, "created", f"Petition created — area: {area.display_name}")
 
+    vision_result: dict | None = req.vision_classification
+    if not vision_result and settings.vision_enabled:
+        try:
+            vision_result = await classify_image(req.photo_url, description=req.description)
+            await log_activity(
+                db,
+                petition_id,
+                "vision_classified",
+                f"Vision: {vision_result.get('issue_type')} ({int(float(vision_result.get('confidence', 0)) * 100)}%)",
+                vision_result,
+            )
+        except Exception as exc:
+            logger.warning("Vision classification failed: %s", exc)
+
+    user_override = req.vision_issue_type_override
+    if user_override:
+        user_override = normalize_issue_type(user_override)
+
     classification = lookup_authority(area, req.description)
+    if vision_result and not user_override:
+        vision_type = normalize_issue_type(str(vision_result.get("issue_type", "")))
+        if vision_type != "other":
+            classification = lookup_authority(area, req.description, vision_type)
+            classification.confidence = max(
+                classification.confidence,
+                float(vision_result.get("confidence", 0.5)),
+            )
+            classification.reasoning = (
+                f"{vision_result.get('reasoning', '')} "
+                f"Routed to {classification.department}."
+            ).strip()
+    elif user_override:
+        classification = lookup_authority(area, req.description, user_override)
+        classification.reasoning = (
+            f"Citizen overrode vision prediction to '{user_override.replace('_', ' ')}'. "
+            f"{classification.reasoning}"
+        )
+        if vision_result:
+            vision_result = {**vision_result, "user_override": user_override}
+
     authority_source = classification.authority_source
 
     # Web search only when the local registry has no verified contact (avoids bad scraped emails).
@@ -260,21 +303,49 @@ async def create_and_process_petition(
         except Exception as exc:
             logger.warning("Lemma drafter failed or timed out, using local draft: %s", exc)
 
+    severity_result: dict | None = None
+    try:
+        severity_result = await analyze_severity(
+            issue_type=classification.issue_type,
+            lat=req.location.lat,
+            lng=req.location.lng,
+            description=req.description,
+            vision_confidence=float(vision_result.get("confidence", 0.5)) if vision_result else 0.5,
+        )
+    except Exception as exc:
+        logger.warning("Severity analysis failed: %s", exc)
+
+    ai_explanations = build_ai_explanations(
+        vision=vision_result,
+        classification=classification.model_dump(),
+        severity=severity_result,
+        authority_source=authority_source,
+        user_override=user_override,
+    )
+
+    update_fields: dict[str, Any] = {
+        "issue_type": classification.issue_type,
+        "department": classification.department,
+        "department_email": classification.department_email,
+        "authority_source": authority_source,
+        "classification_confidence": classification.confidence,
+        "complaint_email_subject": draft.subject,
+        "complaint_email_draft": draft.body,
+        "lemma_powered": lemma_powered,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    if vision_result:
+        update_fields["vision_classification"] = vision_result
+    if severity_result:
+        update_fields["severity_score"] = severity_result["severity_score"]
+        update_fields["severity_level"] = severity_result["severity_level"]
+        update_fields["severity_factors"] = severity_result.get("factors", {})
+    if ai_explanations:
+        update_fields["ai_explanations"] = ai_explanations
+
     await db.petitions.update_one(
         {"_id": petition_id},
-        {
-            "$set": {
-                "issue_type": classification.issue_type,
-                "department": classification.department,
-                "department_email": classification.department_email,
-                "authority_source": authority_source,
-                "classification_confidence": classification.confidence,
-                "complaint_email_subject": draft.subject,
-                "complaint_email_draft": draft.body,
-                "lemma_powered": lemma_powered,
-                "updated_at": datetime.now(timezone.utc),
-            }
-        },
+        {"$set": update_fields},
     )
     await log_activity(db, petition_id, "drafted", f"Complaint email drafted for {classification.department_email}")
     await log_activity(db, petition_id, "approval_pending", "Awaiting citizen approval")
@@ -452,13 +523,27 @@ async def upload_follow_up(
     )
     await log_activity(db, petition_id, "follow_up_uploaded", "Citizen uploaded follow-up photo")
 
-    verdict = check_resolution(
-        petition.get("issue_type") or "other",
-        petition.get("description", ""),
+    original_url = petition.get("photo_url", "")
+    try:
+        verdict_data = await verify_resolution(
+            original_url=original_url,
+            follow_up_url=follow_up_photo_url,
+            issue_type=petition.get("issue_type") or "other",
+            description=petition.get("description", ""),
+        )
+    except Exception as exc:
+        logger.warning("Resolution verification failed, using heuristic: %s", exc)
+        local = check_resolution(
+            petition.get("issue_type") or "other",
+            petition.get("description", ""),
+        )
+        verdict_data = local.model_dump()
+
+    status = verdict_data.get("recommended_status") or (
+        "resolved" if verdict_data.get("resolved") else "under_review"
     )
-    status = verdict.recommended_status
     updates: dict = {
-        "resolution_verdict": verdict.model_dump(),
+        "resolution_verdict": verdict_data,
         "status": status,
         "updated_at": datetime.now(timezone.utc),
     }
@@ -470,8 +555,8 @@ async def upload_follow_up(
         db,
         petition_id,
         "resolution_checked",
-        verdict.reasoning,
-        verdict.model_dump(),
+        verdict_data.get("reasoning", "Resolution checked"),
+        verdict_data,
     )
 
     return (await get_petition(db, petition_id)) or {}

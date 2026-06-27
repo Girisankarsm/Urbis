@@ -37,6 +37,22 @@ export interface Petition {
     resolved: boolean
     confidence: number
     reasoning: string
+    status?: 'resolved' | 'partially_resolved' | 'not_resolved'
+    source?: string
+  }
+  vision_classification?: {
+    issue_type: string
+    confidence: number
+    reasoning: string
+    source?: string
+    user_override?: string
+  }
+  severity_score?: number
+  severity_level?: string
+  ai_explanations?: {
+    vision_classification?: { issue_type?: string; confidence?: number; reasoning?: string }
+    authority_routing?: { explanation?: string; reasoning?: string; authority_source?: string }
+    severity_analysis?: { severity_score?: number; reasoning?: string }
   }
   submitted_at?: string
   resolved_at?: string

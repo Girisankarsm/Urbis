@@ -58,10 +58,45 @@ class Petition(BaseModel):
     updated_at: datetime | None = None
 
 
+class VisionClassification(BaseModel):
+    issue_type: str
+    confidence: float
+    reasoning: str
+    source: str = "keyword"
+    user_override: str | None = None
+
+
+class SeverityAnalysis(BaseModel):
+    severity_score: int
+    severity_level: str
+    reasoning: str
+    factors: dict[str, Any] = Field(default_factory=dict)
+
+
+class AIExplanations(BaseModel):
+    vision_classification: dict[str, Any] | None = None
+    authority_routing: dict[str, Any] | None = None
+    severity_analysis: dict[str, Any] | None = None
+
+
+class DuplicateMatch(BaseModel):
+    petition_id: str
+    issue_type: str
+    status: str | None = None
+    distance_m: float
+    image_similarity: float | None = None
+    likelihood: float
+    photo_url: str | None = None
+    created_at: str | None = None
+    description: str | None = None
+
+
 class CreatePetitionRequest(BaseModel):
     photo_url: str
     location: Location
     description: str = ""
+    vision_issue_type_override: str | None = None
+    vision_classification: dict[str, Any] | None = None
 
 
 class ApprovalRequest(BaseModel):
@@ -96,3 +131,17 @@ class ResolutionVerdict(BaseModel):
     confidence: float
     reasoning: str
     recommended_status: str
+    status: str | None = None
+    source: str | None = None
+
+
+class ClassifyVisionRequest(BaseModel):
+    photo_url: str
+    description: str = ""
+
+
+class CheckDuplicatesRequest(BaseModel):
+    lat: float
+    lng: float
+    issue_type: str | None = None
+    photo_url: str | None = None
