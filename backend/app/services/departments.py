@@ -36,7 +36,7 @@ ISSUE_KEYWORDS: dict[str, list[str]] = {
     "garbage": ["garbage", "trash", "waste", "dump", "litter", "bin", "rubbish"],
     "streetlight": ["streetlight", "street light", "lamp", "lighting", "dark", "bulb"],
     "water_leak": ["water leak", "leak", "pipe", "burst", "flooding water", "hydrant"],
-    "sewage": ["sewage", "sewer", "drain", "manhole", "overflow", "stench"],
+    "sewage": ["sewage", "sewer", "drain", "drainage", "manhole", "overflow", "stench", "canal", "storm water"],
 }
 
 DEPARTMENT_BY_ISSUE = {

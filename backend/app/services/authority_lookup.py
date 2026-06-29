@@ -12,6 +12,7 @@ from app.services.regional_authorities import (
     INDIA_STATE_CONTACTS,
     METRO_ALIASES,
     REGIONAL_CONTACTS,
+    TN_DISTRICT_RDMA,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,9 +75,22 @@ def _match_india_state(haystack: str, state: str) -> str | None:
     return None
 
 
+def _match_tn_district(haystack: str, district: str) -> str | None:
+    """Match Tamil Nadu district for RDMA routing when no ULB is in the registry."""
+    district_lower = district.strip().lower()
+    for key in sorted(TN_DISTRICT_RDMA.keys(), key=len, reverse=True):
+        if key in haystack or key in district_lower:
+            return key
+    return None
+
+
 def _contacts_for_region(region_key: str, issue: str) -> tuple[str, str]:
-    contacts = REGIONAL_CONTACTS.get(region_key) or INDIA_STATE_CONTACTS.get(region_key, {})
-    return contacts.get(issue, contacts["other"])
+    contacts = REGIONAL_CONTACTS.get(region_key) or INDIA_STATE_CONTACTS.get(region_key)
+    if contacts:
+        return contacts.get(issue, contacts["other"])
+    if region_key in TN_DISTRICT_RDMA:
+        return TN_DISTRICT_RDMA[region_key]
+    return ("Municipal Authority", "")
 
 
 def _location_label(area: GeoArea) -> str:
@@ -103,6 +117,9 @@ def resolve_region_key(area: GeoArea) -> tuple[str | None, str]:
         return metro, "metro"
 
     if area.country.lower() in {"india", "भारत"} or "india" in haystack:
+        tn_district = _match_tn_district(haystack, area.district)
+        if tn_district:
+            return tn_district, "state"
         state_key = _match_india_state(haystack, area.state)
         if state_key:
             return state_key, "state"

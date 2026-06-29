@@ -31,8 +31,44 @@ def test_lookup_authority_urapakkam_pothole():
     )
     result = lookup_authority(area, "large pothole on the road")
     assert result.issue_type == "pothole"
-    assert "GCC" in result.department or "Chennai" in result.department
-    assert result.department_email == "sebrr@chennaicorporation.gov.in"
+    assert "Chengalpattu" in result.department
+    assert "Chennai" not in result.department
+    assert result.department_email == "commr.chengalpattu@tn.gov.in"
+
+
+def test_lookup_authority_urapakkam_drainage():
+    area = GeoArea(
+        display_name="Urapakkam, Vandalur, Chengalpattu, Tamil Nadu, 603211, India",
+        city="Chengalpattu",
+        district="Chengalpattu",
+        state="Tamil Nadu",
+        country="India",
+        municipality="Chengalpattu",
+        lat=12.8578,
+        lng=80.0658,
+    )
+    result = lookup_authority(area, "Drainage issue in urapakkam")
+    assert result.issue_type == "sewage"
+    assert "Chengalpattu" in result.department
+    assert "Drainage" in result.department
+    assert result.department_email == "commr.chengalpattu@tn.gov.in"
+
+
+def test_lookup_authority_chennai_garbage_uses_gcc():
+    area = GeoArea(
+        display_name="T. Nagar, Chennai, Tamil Nadu, India",
+        city="Chennai",
+        district="Chennai",
+        state="Tamil Nadu",
+        country="India",
+        municipality="Greater Chennai Corporation",
+        lat=13.04,
+        lng=80.23,
+    )
+    result = lookup_authority(area, "garbage pile on street")
+    assert result.issue_type == "garbage"
+    assert "Chennai" in result.department
+    assert result.department_email == "seswm@chennaicorporation.gov.in"
 
 
 def test_lookup_authority_pune_garbage():
@@ -69,10 +105,11 @@ def test_lookup_authority_metro_suburb_whitefield():
     assert "BBMP" in result.department
 
 
-def test_lookup_authority_state_fallback():
+def test_lookup_authority_state_fallback_tirunelveli():
     area = GeoArea(
         display_name="Small Town, Tirunelveli, Tamil Nadu, India",
         city="Tirunelveli",
+        district="Tirunelveli",
         state="Tamil Nadu",
         country="India",
         municipality="Tirunelveli",
@@ -80,10 +117,10 @@ def test_lookup_authority_state_fallback():
         lng=77.76,
     )
     key, kind = resolve_region_key(area)
-    assert key == "tamil nadu"
+    assert key == "tirunelveli"
     assert kind == "state"
     result = lookup_authority(area, "water leak on road")
-    assert result.department_email
+    assert result.department_email == "rdma.tirunelveli@tn.gov.in"
 
 
 def test_lookup_authority_defaults_to_other():

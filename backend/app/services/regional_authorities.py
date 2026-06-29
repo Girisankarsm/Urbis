@@ -50,6 +50,33 @@ _GHMC = {
     "other": ("GHMC — Control Room", "ghmccomplaints@ghmc.gov.in"),
 }
 
+_CHENGALPATTU = {
+    "pothole": ("Chengalpattu Municipality — Roads", "commr.chengalpattu@tn.gov.in"),
+    "garbage": ("Chengalpattu Municipality — Sanitation", "commr.chengalpattu@tn.gov.in"),
+    "streetlight": ("Chengalpattu Municipality — Electrical", "commr.chengalpattu@tn.gov.in"),
+    "water_leak": ("Chengalpattu Municipality — Water Supply", "commr.chengalpattu@tn.gov.in"),
+    "sewage": ("Chengalpattu Municipality — Drainage", "commr.chengalpattu@tn.gov.in"),
+    "other": ("Chengalpattu Municipality — Commissioner", "commr.chengalpattu@tn.gov.in"),
+}
+
+_GUDUVANCHERI = {
+    "pothole": ("Nandhivaram-Guduvancheri Municipality — Roads", "commr.guduvancheri@tn.gov.in"),
+    "garbage": ("Nandhivaram-Guduvancheri Municipality — Sanitation", "commr.guduvancheri@tn.gov.in"),
+    "streetlight": ("Nandhivaram-Guduvancheri Municipality — Electrical", "commr.guduvancheri@tn.gov.in"),
+    "water_leak": ("Nandhivaram-Guduvancheri Municipality — Water", "commr.guduvancheri@tn.gov.in"),
+    "sewage": ("Nandhivaram-Guduvancheri Municipality — Drainage", "commr.guduvancheri@tn.gov.in"),
+    "other": ("Nandhivaram-Guduvancheri Municipality — Commissioner", "commr.guduvancheri@tn.gov.in"),
+}
+
+_MARAIMALAINAGAR = {
+    "pothole": ("Maraimalainagar Municipality — Roads", "commr.maraimalainagar@tn.gov.in"),
+    "garbage": ("Maraimalainagar Municipality — Sanitation", "commr.maraimalainagar@tn.gov.in"),
+    "streetlight": ("Maraimalainagar Municipality — Electrical", "commr.maraimalainagar@tn.gov.in"),
+    "water_leak": ("Maraimalainagar Municipality — Water", "commr.maraimalainagar@tn.gov.in"),
+    "sewage": ("Maraimalainagar Municipality — Drainage", "commr.maraimalainagar@tn.gov.in"),
+    "other": ("Maraimalainagar Municipality — Commissioner", "commr.maraimalainagar@tn.gov.in"),
+}
+
 # Primary city / corporation → department contacts by issue type
 REGIONAL_CONTACTS: dict[str, IssueContacts] = {
     "chennai": _GCC,
@@ -276,16 +303,15 @@ REGIONAL_CONTACTS: dict[str, IssueContacts] = {
         "sewage": ("NMMC — Sewerage", "nmmccomplaints@nmmconline.com"),
         "other": ("Navi Mumbai Municipal Corporation", "nmmccomplaints@nmmconline.com"),
     },
+    "chengalpattu": _CHENGALPATTU,
+    "guduvancheri": _GUDUVANCHERI,
+    "guduvancherry": _GUDUVANCHERI,
+    "maraimalainagar": _MARAIMALAINAGAR,
 }
 
 # Suburbs / districts that geocode without the main city name → parent corporation key
 METRO_ALIASES: dict[str, list[str]] = {
     "chennai": [
-        "guduvancheri",
-        "guduvancherry",
-        "urapakkam",
-        "vandalur",
-        "chengalpattu",
         "tambaram",
         "pallavaram",
         "chromepet",
@@ -301,6 +327,16 @@ METRO_ALIASES: dict[str, list[str]] = {
         "t nagar",
         "omr",
         "old mahabalipuram road",
+    ],
+    "chengalpattu": [
+        "urapakkam",
+        "vandalur",
+        "kilambakkam",
+        "paranur",
+    ],
+    "guduvancheri": [
+        "nandhivaram",
+        "guduvancherry",
     ],
     "bengaluru": [
         "whitefield",
@@ -370,15 +406,26 @@ METRO_ALIASES: dict[str, list[str]] = {
     ],
 }
 
+# Tamil Nadu district → RDMA (regional) grievance contacts when ULB is not in the registry
+TN_DISTRICT_RDMA: dict[str, tuple[str, str]] = {
+    "chengalpattu": ("Tamil Nadu RDMA — Chengalpet Region", "rdma.chengalpet@tn.gov.in"),
+    "tirunelveli": ("Tamil Nadu RDMA — Tirunelveli Region", "rdma.tirunelveli@tn.gov.in"),
+    "madurai": ("Tamil Nadu RDMA — Madurai Region", "rdma.madurai@tn.gov.in"),
+    "salem": ("Tamil Nadu RDMA — Salem Region", "rdma.salem@tn.gov.in"),
+    "thanjavur": ("Tamil Nadu RDMA — Thanjavur Region", "rdma.thanjavur@tn.gov.in"),
+    "tiruppur": ("Tamil Nadu RDMA — Tiruppur Region", "rdma.tiruppur@tn.gov.in"),
+    "vellore": ("Tamil Nadu RDMA — Vellore Region", "rdma.vellore@tn.gov.in"),
+}
+
 # State-level fallback when city is not in the database (India)
 INDIA_STATE_CONTACTS: dict[str, IssueContacts] = {
     "tamil nadu": {
-        "pothole": ("Tamil Nadu Municipal Administration — Roads", "sebrr@chennaicorporation.gov.in"),
-        "garbage": ("Tamil Nadu ULB — Sanitation", "seswm@chennaicorporation.gov.in"),
-        "streetlight": ("Tamil Nadu ULB — Electrical", "seelectrical@chennaicorporation.gov.in"),
-        "water_leak": ("Tamil Nadu Water Supply (CMWSSB)", "cmwssb@tn.gov.in"),
-        "sewage": ("Tamil Nadu ULB — Storm Water Drains", "seswd@chennaicorporation.gov.in"),
-        "other": ("Tamil Nadu Urban Local Bodies", "commissioner@chennaicorporation.gov.in"),
+        "pothole": ("Tamil Nadu Municipal Administration", ""),
+        "garbage": ("Tamil Nadu ULB — Sanitation", ""),
+        "streetlight": ("Tamil Nadu ULB — Electrical", ""),
+        "water_leak": ("Tamil Nadu Water Supply", ""),
+        "sewage": ("Tamil Nadu ULB — Drainage", ""),
+        "other": ("Tamil Nadu Urban Local Bodies", ""),
     },
     "karnataka": {
         "pothole": ("Karnataka Municipal Administration", "complaints@bbmp.gov.in"),
