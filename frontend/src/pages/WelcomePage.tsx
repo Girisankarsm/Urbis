@@ -64,6 +64,8 @@ export function WelcomePage() {
   }, [])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('auth_error')
     if (code) {
       setAuthError(AUTH_ERROR_MESSAGES[code] ?? 'Sign-in failed. Please try again.')
     }
