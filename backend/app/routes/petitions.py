@@ -123,6 +123,7 @@ async def approve_petition(
     return {
         "petition": petition,
         "email_sent": petition.get("email_sent", False),
+        "contact_filed": petition.get("contact_filed", False),
         "sent_to": petition.get("sent_to"),
         "intended_to": petition.get("intended_to"),
         "send_message": petition.get("send_message", ""),

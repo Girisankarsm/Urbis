@@ -255,6 +255,9 @@ async def discover_authority_online(
                 issue_type=issue,
                 department=department,
                 department_email=best,
+                contact_channel="email",
+                contact_value=best,
+                source_url="",
                 confidence=0.88,
                 reasoning=(
                     f"Found official contact {best} via web search for {place}, {area.state or area.country}."

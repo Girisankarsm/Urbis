@@ -103,6 +103,7 @@ export async function approvePetition(
 ): Promise<{
   petition: Petition
   email_sent?: boolean
+  contact_filed?: boolean
   sent_to?: string
   intended_to?: string
   send_message?: string

@@ -14,6 +14,10 @@ from app.services.regional_authorities import (
     REGIONAL_CONTACTS,
     TN_DISTRICT_RDMA,
 )
+from app.services.verified_authorities import (
+    lookup_verified_authority,
+    national_fallback_classification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -129,11 +133,17 @@ def resolve_region_key(area: GeoArea) -> tuple[str | None, str]:
 
 def lookup_authority(area: GeoArea, description: str, issue_type: str | None = None) -> ClassificationResult:
     issue = issue_type or _classify_issue_type(description)
+
+    verified = lookup_verified_authority(area, description, issue)
+    if verified:
+        return verified
+
     region_key, match_kind = resolve_region_key(area)
     label = _location_label(area)
 
     if region_key:
         dept_name, email = _contacts_for_region(region_key, issue)
+        channel = "email" if email else ""
         match_labels = {
             "city": f"city/municipality ({region_key})",
             "metro": f"metro area near {region_key}",
@@ -143,6 +153,9 @@ def lookup_authority(area: GeoArea, description: str, issue_type: str | None = N
             issue_type=issue,
             department=dept_name,
             department_email=email,
+            contact_channel=channel or "email",
+            contact_value=email,
+            source_url="",
             confidence=0.9 if match_kind == "city" else 0.8 if match_kind == "metro" else 0.7,
             reasoning=(
                 f"Located complaint in {label}, {area.state or area.country}. "
@@ -152,17 +165,8 @@ def lookup_authority(area: GeoArea, description: str, issue_type: str | None = N
         )
 
     label = _location_label(area)
-    return ClassificationResult(
-        issue_type=issue,
-        department=f"Municipal Authority ({label})",
-        department_email="",
-        confidence=0.2,
-        reasoning=(
-            f"No cached authority for {label}, {area.state or area.country}. "
-            "Web search or manual verification required before sending."
-        ),
-        authority_source="unknown",
-    )
+    fallback = national_fallback_classification(issue, area)
+    return fallback
 
 
 def merge_lemma_classification(
@@ -176,6 +180,9 @@ def merge_lemma_classification(
             issue_type=lemma_result.get("issue_type") or _classify_issue_type(description),
             department=lemma_result.get("department") or "Municipal Authority",
             department_email=email,
+            contact_channel="email",
+            contact_value=email,
+            source_url=str(lemma_result.get("source_url", "")),
             confidence=float(lemma_result.get("confidence", 0.8)),
             reasoning=lemma_result.get(
                 "reasoning",

@@ -24,7 +24,7 @@ from app.routes.auth import router as auth_router
 from app.routes.petitions import router as petitions_router
 from app.routes.uploads import upload_router
 from app.routes.vision import router as vision_router
-from app.services.infrastructure.cache import ensure_overpass_cache_indexes
+from app.services.verified_authorities import list_verified_cities
 from app.services.mongodb_indexes import ensure_indexes
 from app.services.petitions import seed_departments
 
@@ -127,7 +127,7 @@ async def health():
             if lemma_ok
             else ("gmail" if settings.google_auth_enabled else "smtp" if settings.smtp_host else "log_only")
         ),
-        "authority_lookup": "geocoding + regional contacts" + (" + lemma agents" if lemma_ok else ""),
+        "authority_lookup": "verified registry + regional fallback" + (" + lemma agents" if lemma_ok else ""),
         "google_auth_enabled": settings.google_auth_enabled,
         "cloudinary_configured": settings.cloudinary_enabled,
         "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
@@ -142,6 +142,13 @@ async def health():
 @app.get("/api/health/lemma")
 async def lemma_health():
     return await verify_lemma_api()
+
+
+@app.get("/api/authorities/verified")
+async def verified_authorities():
+    """Cities with source-backed contact channels in verified_authorities.json."""
+    cities = list_verified_cities()
+    return {"cities": cities, "count": len(cities)}
 
 
 @app.get("/api/setup")

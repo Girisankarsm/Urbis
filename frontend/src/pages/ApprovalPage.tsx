@@ -131,6 +131,10 @@ export function ApprovalDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [sendingAction, setSendingAction] = useState<'approve' | 'reject' | null>(null)
 
+  const contactChannel = petition?.contact_channel || 'email'
+  const isEmailChannel = contactChannel === 'email'
+  const contactValue = petition?.contact_value || petition?.department_email || ''
+
   useEffect(() => {
     if (!id) return
     getPetition(id).then((data) => {
@@ -183,6 +187,10 @@ export function ApprovalDetailPage() {
       if (result.email_sent) {
         const note = result.send_message || `Complaint sent to ${result.sent_to}`
         navigate(`/petitions/${id}`, { state: { flash: note } })
+      } else if (result.contact_filed) {
+        navigate(`/petitions/${id}`, {
+          state: { flash: result.send_message || 'Complaint approved for official channel filing.' },
+        })
       } else {
         alert(
           result.send_message ||
@@ -251,7 +259,9 @@ export function ApprovalDetailPage() {
             </div>
           )}
           <p className="text-xs text-slate-500 leading-relaxed">
-            Verify the recipient email below — Urbis finds it via web search from your map location.
+            {isEmailChannel
+              ? 'Verify the recipient email below — Urbis uses verified official contacts with source links when available.'
+              : 'This location uses an official portal or helpline — approve to mark filed and copy your complaint text.'}
           </p>
         </div>
       </header>
@@ -276,6 +286,29 @@ export function ApprovalDetailPage() {
                 value={<span className="capitalize">{petition.authority_source.replace('_', ' ')}</span>}
               />
             )}
+            {petition.contact_channel && petition.contact_channel !== 'email' && (
+              <MetaRow
+                icon={SourceIcon}
+                label="Channel"
+                value={<span className="capitalize">{petition.contact_channel}</span>}
+              />
+            )}
+            {petition.source_url && (
+              <MetaRow
+                icon={SourceIcon}
+                label="Official source"
+                value={
+                  <a
+                    href={petition.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-civic-700 underline break-all"
+                  >
+                    {petition.source_url.replace(/^https?:\/\//, '')}
+                  </a>
+                }
+              />
+            )}
             {petition.area_info?.display_name && (
               <MetaRow icon={AreaIcon} label="Area" value={petition.area_info.display_name} />
             )}
@@ -292,26 +325,50 @@ export function ApprovalDetailPage() {
           </h3>
 
           <div className="space-y-[clamp(1rem,3vw,1.25rem)]">
-            <div>
-              <label htmlFor="approval-to" className="approval-field-label">
-                To (municipal authority)
-              </label>
-              <input
-                id="approval-to"
-                type="email"
-                value={toEmail}
-                onChange={(e) => setToEmail(e.target.value)}
-                placeholder="secretary@tmcofficials.in"
-                className="approval-input approval-input-mono"
-                autoComplete="off"
-                spellCheck={false}
-                required
-              />
-              <p className="approval-hint-verify">
-                <VerifyDotIcon className="approval-hint-verify-dot" />
-                Auto-filled from your location — please verify before sending
-              </p>
-            </div>
+            {!isEmailChannel ? (
+              <div className="rounded-xl border border-civic-200 bg-civic-50/80 px-4 py-3">
+                <p className="approval-field-label mb-1">
+                  Official {contactChannel === 'helpline' ? 'helpline' : 'portal'}
+                </p>
+                {contactChannel === 'helpline' ? (
+                  <p className="text-lg font-semibold text-civic-900 tracking-wide">{contactValue}</p>
+                ) : (
+                  <a
+                    href={contactValue}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-civic-700 font-medium underline break-all"
+                  >
+                    {contactValue}
+                  </a>
+                )}
+                <p className="approval-hint-verify mt-2">
+                  <VerifyDotIcon className="approval-hint-verify-dot" />
+                  After approving, open this channel and paste the complaint text below
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="approval-to" className="approval-field-label">
+                  To (municipal authority)
+                </label>
+                <input
+                  id="approval-to"
+                  type="email"
+                  value={toEmail}
+                  onChange={(e) => setToEmail(e.target.value)}
+                  placeholder="secretary@tmcofficials.in"
+                  className="approval-input approval-input-mono"
+                  autoComplete="off"
+                  spellCheck={false}
+                  required
+                />
+                <p className="approval-hint-verify">
+                  <VerifyDotIcon className="approval-hint-verify-dot" />
+                  Auto-filled from verified official contact — please verify before sending
+                </p>
+              </div>
+            )}
 
             <div>
               <label htmlFor="approval-subject" className="approval-field-label">
@@ -358,16 +415,18 @@ export function ApprovalDetailPage() {
           <button
             type="button"
             onClick={() => handleApprove(true)}
-            disabled={submitting || !toEmail.trim()}
+            disabled={submitting || (isEmailChannel && !toEmail.trim())}
             className={`approval-btn-primary w-full sm:w-auto ${sendingAction === 'approve' ? 'is-sending' : ''}`}
           >
             {sendingAction === 'approve' ? (
               <>
                 <span className="approval-send-spinner" aria-hidden />
-                Sending…
+                {isEmailChannel ? 'Sending…' : 'Saving…'}
               </>
-            ) : (
+            ) : isEmailChannel ? (
               '✓ Approve & Send'
+            ) : (
+              '✓ Approve & Mark Filed'
             )}
           </button>
         </div>

@@ -114,10 +114,27 @@ class FollowUpRequest(BaseModel):
 class ClassificationResult(BaseModel):
     issue_type: str
     department: str
-    department_email: str
+    department_email: str = ""
+    contact_channel: str = "email"
+    contact_value: str = ""
+    source_url: str = ""
     confidence: float
     reasoning: str
     authority_source: str = "registry"
+
+    @property
+    def is_email_channel(self) -> bool:
+        return self.contact_channel == "email" and bool(self.department_email or self.contact_value)
+
+    @property
+    def effective_contact_value(self) -> str:
+        if self.contact_channel == "email":
+            return self.department_email or self.contact_value
+        return self.contact_value
+
+    @property
+    def has_contact(self) -> bool:
+        return bool(self.effective_contact_value)
 
 
 class EmailDraft(BaseModel):

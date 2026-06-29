@@ -31,8 +31,8 @@ def test_lookup_authority_urapakkam_pothole():
     )
     result = lookup_authority(area, "large pothole on the road")
     assert result.issue_type == "pothole"
+    assert result.authority_source == "verified"
     assert "Chengalpattu" in result.department
-    assert "Chennai" not in result.department
     assert result.department_email == "commr.chengalpattu@tn.gov.in"
 
 
@@ -49,9 +49,9 @@ def test_lookup_authority_urapakkam_drainage():
     )
     result = lookup_authority(area, "Drainage issue in urapakkam")
     assert result.issue_type == "sewage"
-    assert "Chengalpattu" in result.department
-    assert "Drainage" in result.department
-    assert result.department_email == "commr.chengalpattu@tn.gov.in"
+    assert result.authority_source == "verified"
+    assert result.contact_channel == "portal"
+    assert result.contact_value == "https://gdp.tn.gov.in"
 
 
 def test_lookup_authority_chennai_garbage_uses_gcc():
@@ -67,6 +67,7 @@ def test_lookup_authority_chennai_garbage_uses_gcc():
     )
     result = lookup_authority(area, "garbage pile on street")
     assert result.issue_type == "garbage"
+    assert result.authority_source == "verified"
     assert "Chennai" in result.department
     assert result.department_email == "seswm@chennaicorporation.gov.in"
 
@@ -123,7 +124,7 @@ def test_lookup_authority_state_fallback_tirunelveli():
     assert result.department_email == "rdma.tirunelveli@tn.gov.in"
 
 
-def test_lookup_authority_defaults_to_other():
+def test_lookup_authority_defaults_to_cpgrams():
     area = GeoArea(
         display_name="Unknown Town",
         city="Unknown Town",
@@ -135,4 +136,5 @@ def test_lookup_authority_defaults_to_other():
     )
     result = lookup_authority(area, "random issue")
     assert result.issue_type == "other"
-    assert result.authority_source == "unknown"
+    assert result.authority_source == "cpgrams"
+    assert "pgportal.gov.in" in result.contact_value

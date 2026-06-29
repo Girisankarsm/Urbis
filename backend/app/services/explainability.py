@@ -29,6 +29,9 @@ def build_ai_explanations(
             "issue_type": classification.get("issue_type"),
             "department": classification.get("department"),
             "department_email": classification.get("department_email"),
+            "contact_channel": classification.get("contact_channel"),
+            "contact_value": classification.get("contact_value"),
+            "source_url": classification.get("source_url"),
             "confidence": classification.get("confidence"),
             "reasoning": classification.get("reasoning"),
             "authority_source": authority_source or classification.get("authority_source"),
@@ -48,12 +51,19 @@ def build_ai_explanations(
 
 def _authority_explanation(authority_source: str, classification: dict[str, Any]) -> str:
     dept = classification.get("department", "municipal authority")
-    email = classification.get("department_email", "")
+    channel = classification.get("contact_channel", "email")
+    value = classification.get("contact_value") or classification.get("department_email", "")
+    source_url = classification.get("source_url", "")
     source = authority_source or classification.get("authority_source", "registry")
+    if source == "verified":
+        base = f"Routed to {dept} using verified official contact ({channel}: {value})."
+        return f"{base} Source: {source_url}" if source_url else base
+    if source == "cpgrams":
+        return f"No local verified contact found — national CPGRAMS portal: {value}"
     if source == "registry":
-        return f"Routed to {dept} using verified regional municipal contact registry{f' ({email})' if email else ''}."
+        return f"Routed to {dept} using regional municipal registry{f' ({value})' if value else ''}."
     if source == "web_search":
-        return f"Discovered {dept} via web search for official government contact{f' ({email})' if email else ''}."
+        return f"Discovered {dept} via web search for official government contact{f' ({value})' if value else ''}."
     if source == "lemma":
-        return f"Lemma issue-classifier agent selected {dept} based on location and issue type{f' ({email})' if email else ''}."
+        return f"Lemma issue-classifier agent selected {dept} based on location and issue type{f' ({value})' if value else ''}."
     return f"Routed to {dept} using local classification rules."

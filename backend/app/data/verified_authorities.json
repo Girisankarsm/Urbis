@@ -1,0 +1,415 @@
+{
+  "version": 1,
+  "national_fallback": {
+    "department_name": "CPGRAMS — Centralized Public Grievance Redress and Monitoring System",
+    "channel_type": "portal",
+    "value": "https://pgportal.gov.in",
+    "source_url": "https://pgportal.gov.in"
+  },
+  "cities": {
+    "chennai": {
+      "display_name": "Greater Chennai Corporation",
+      "aliases": [
+        "tambaram",
+        "pallavaram",
+        "chromepet",
+        "avadi",
+        "ambattur",
+        "perungalathur",
+        "selaiyur",
+        "medavakkam",
+        "sholinganallur",
+        "velachery",
+        "adyar",
+        "anna nagar",
+        "t nagar",
+        "omr",
+        "old mahabalipuram road"
+      ],
+      "issues": {
+        "pothole": {
+          "department_name": "Greater Chennai Corporation — Bridges & Roads (EBRR)",
+          "channel_type": "email",
+          "value": "sebrr@chennaicorporation.gov.in",
+          "source_url": "https://www.chennaicorporation.gov.in/"
+        },
+        "garbage": {
+          "department_name": "Greater Chennai Corporation — Solid Waste Management",
+          "channel_type": "email",
+          "value": "seswm@chennaicorporation.gov.in",
+          "source_url": "https://www.chennaicorporation.gov.in/"
+        },
+        "streetlight": {
+          "department_name": "Greater Chennai Corporation — Electrical",
+          "channel_type": "email",
+          "value": "seelectrical@chennaicorporation.gov.in",
+          "source_url": "https://www.chennaicorporation.gov.in/"
+        },
+        "water_leak": {
+          "department_name": "Chennai Metro Water (CMWSSB)",
+          "channel_type": "email",
+          "value": "cmwssb@tn.gov.in",
+          "source_url": "https://www.chennaimetrowater.tn.gov.in/"
+        },
+        "sewage": {
+          "department_name": "Greater Chennai Corporation — Storm Water Drains (ESWD)",
+          "channel_type": "email",
+          "value": "seswd@chennaicorporation.gov.in",
+          "source_url": "https://www.chennaicorporation.gov.in/"
+        },
+        "other": {
+          "department_name": "Greater Chennai Corporation — Citizen Portal",
+          "channel_type": "portal",
+          "value": "https://chennaicorporation.gov.in/gcc/citz_portal/",
+          "source_url": "https://www.chennaicorporation.gov.in/"
+        }
+      },
+      "city_fallback": {
+        "department_name": "Greater Chennai Corporation — Civic Helpline",
+        "channel_type": "helpline",
+        "value": "1913",
+        "source_url": "https://www.chennaicorporation.gov.in/"
+      }
+    },
+    "chengalpattu": {
+      "display_name": "Chengalpattu Municipality",
+      "aliases": ["urapakkam", "vandalur", "kilambakkam", "paranur"],
+      "issues": {
+        "pothole": {
+          "department_name": "Chengalpattu Municipality — Commissioner",
+          "channel_type": "email",
+          "value": "commr.chengalpattu@tn.gov.in",
+          "source_url": "https://chengalpattu.nic.in/public-utility/chengalpattu-municipality/"
+        },
+        "garbage": {
+          "department_name": "Chengalpattu Municipality — Sanitation",
+          "channel_type": "email",
+          "value": "commr.chengalpattu@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/chengalpattu/"
+        },
+        "streetlight": {
+          "department_name": "Chengalpattu Municipality — Electrical",
+          "channel_type": "email",
+          "value": "commr.chengalpattu@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/chengalpattu/"
+        },
+        "water_leak": {
+          "department_name": "Chengalpattu Municipality — Water Supply",
+          "channel_type": "email",
+          "value": "commr.chengalpattu@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/chengalpattu/"
+        },
+        "sewage": {
+          "department_name": "Chengalpattu Municipality — Drainage",
+          "channel_type": "portal",
+          "value": "https://gdp.tn.gov.in",
+          "source_url": "https://chengalpattu.nic.in/about-district/grievance-redressal/"
+        },
+        "other": {
+          "department_name": "Tamil Nadu — Grievance Redressal (GDP)",
+          "channel_type": "portal",
+          "value": "https://gdp.tn.gov.in",
+          "source_url": "https://chengalpattu.nic.in/about-district/grievance-redressal/"
+        }
+      },
+      "city_fallback": {
+        "department_name": "Chengalpattu Municipality — Office",
+        "channel_type": "helpline",
+        "value": "044-27424251",
+        "source_url": "https://chengalpattu.nic.in/public-utility/chengalpattu-municipality/"
+      }
+    },
+    "guduvancheri": {
+      "display_name": "Nandhivaram-Guduvancheri Municipality",
+      "aliases": ["nandhivaram", "guduvancherry"],
+      "issues": {
+        "pothole": {
+          "department_name": "Nandhivaram-Guduvancheri Municipality — Commissioner",
+          "channel_type": "email",
+          "value": "commr.guduvancheri@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "garbage": {
+          "department_name": "Nandhivaram-Guduvancheri Municipality — Sanitation",
+          "channel_type": "email",
+          "value": "commr.guduvancheri@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "streetlight": {
+          "department_name": "Nandhivaram-Guduvancheri Municipality",
+          "channel_type": "email",
+          "value": "commr.guduvancheri@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "water_leak": {
+          "department_name": "Nandhivaram-Guduvancheri Municipality — Water",
+          "channel_type": "email",
+          "value": "commr.guduvancheri@tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "sewage": {
+          "department_name": "Tamil Nadu — Grievance Redressal (GDP)",
+          "channel_type": "portal",
+          "value": "https://gdp.tn.gov.in",
+          "source_url": "https://chengalpattu.nic.in/about-district/grievance-redressal/"
+        },
+        "other": {
+          "department_name": "Tamil Nadu — Grievance Redressal (GDP)",
+          "channel_type": "portal",
+          "value": "https://gdp.tn.gov.in",
+          "source_url": "https://chengalpattu.nic.in/about-district/grievance-redressal/"
+        }
+      }
+    },
+    "bengaluru": {
+      "display_name": "Bruhat Bengaluru Mahanagara Palike (BBMP)",
+      "aliases": [
+        "whitefield",
+        "electronic city",
+        "marathahalli",
+        "koramangala",
+        "indiranagar",
+        "hebbal",
+        "yelahanka",
+        "btm",
+        "jayanagar",
+        "malleshwaram",
+        "rajajinagar",
+        "hsr layout"
+      ],
+      "issues": {
+        "pothole": {
+          "department_name": "BBMP — Roads & Infrastructure",
+          "channel_type": "email",
+          "value": "complaints@bbmp.gov.in",
+          "source_url": "https://bbmp.gov.in/"
+        },
+        "garbage": {
+          "department_name": "BBMP — Solid Waste Management",
+          "channel_type": "email",
+          "value": "swm@bbmp.gov.in",
+          "source_url": "https://bbmp.gov.in/"
+        },
+        "streetlight": {
+          "department_name": "BBMP — Electrical",
+          "channel_type": "email",
+          "value": "electrical@bbmp.gov.in",
+          "source_url": "https://bbmp.gov.in/"
+        },
+        "water_leak": {
+          "department_name": "Bangalore Water Supply and Sewerage Board (BWSSB)",
+          "channel_type": "email",
+          "value": "contactus@bwssb.org",
+          "source_url": "https://www.bwssb.gov.in/"
+        },
+        "sewage": {
+          "department_name": "BWSSB — Sewerage",
+          "channel_type": "email",
+          "value": "contactus@bwssb.org",
+          "source_url": "https://www.bwssb.gov.in/"
+        },
+        "other": {
+          "department_name": "BBMP — Sahaaya Citizen Portal",
+          "channel_type": "portal",
+          "value": "https://bbmp.gov.in/en/web/guest/home",
+          "source_url": "https://bbmp.gov.in/"
+        }
+      },
+      "city_fallback": {
+        "department_name": "BBMP — Control Room",
+        "channel_type": "helpline",
+        "value": "080-22660000",
+        "source_url": "https://bbmp.gov.in/"
+      }
+    },
+    "mumbai": {
+      "display_name": "Brihanmumbai Municipal Corporation (BMC)",
+      "aliases": [
+        "andheri",
+        "bandra",
+        "borivali",
+        "dadar",
+        "powai",
+        "worli",
+        "colaba",
+        "malad",
+        "goregaon",
+        "kandivali"
+      ],
+      "issues": {
+        "pothole": {
+          "department_name": "BMC — Roads",
+          "channel_type": "email",
+          "value": "customercare@mcgm.gov.in",
+          "source_url": "https://portal.mcgm.gov.in/"
+        },
+        "garbage": {
+          "department_name": "BMC — Solid Waste Management",
+          "channel_type": "email",
+          "value": "customercare@mcgm.gov.in",
+          "source_url": "https://portal.mcgm.gov.in/"
+        },
+        "streetlight": {
+          "department_name": "BMC — Electrical",
+          "channel_type": "email",
+          "value": "customercare@mcgm.gov.in",
+          "source_url": "https://portal.mcgm.gov.in/"
+        },
+        "water_leak": {
+          "department_name": "BMC — Water Supply",
+          "channel_type": "email",
+          "value": "customercare@mcgm.gov.in",
+          "source_url": "https://portal.mcgm.gov.in/"
+        },
+        "sewage": {
+          "department_name": "BMC — Sewerage",
+          "channel_type": "email",
+          "value": "customercare@mcgm.gov.in",
+          "source_url": "https://portal.mcgm.gov.in/"
+        },
+        "other": {
+          "department_name": "BMC — Online Civic Services",
+          "channel_type": "portal",
+          "value": "https://portal.mcgm.gov.in/",
+          "source_url": "https://portal.mcgm.gov.in/"
+        }
+      }
+    },
+    "pune": {
+      "display_name": "Pune Municipal Corporation",
+      "aliases": ["pimpri", "chinchwad", "wakad", "hinjewadi", "kothrud", "baner", "hadapsar", "viman nagar"],
+      "issues": {
+        "pothole": {
+          "department_name": "Pune Municipal Corporation — Roads",
+          "channel_type": "email",
+          "value": "pmc@punecorporation.org",
+          "source_url": "https://www.pmc.gov.in/"
+        },
+        "garbage": {
+          "department_name": "PMC — Solid Waste",
+          "channel_type": "email",
+          "value": "pmc@punecorporation.org",
+          "source_url": "https://www.pmc.gov.in/"
+        },
+        "streetlight": {
+          "department_name": "PMC — Electrical",
+          "channel_type": "email",
+          "value": "pmc@punecorporation.org",
+          "source_url": "https://www.pmc.gov.in/"
+        },
+        "water_leak": {
+          "department_name": "PMC — Water Supply",
+          "channel_type": "email",
+          "value": "pmc@punecorporation.org",
+          "source_url": "https://www.pmc.gov.in/"
+        },
+        "sewage": {
+          "department_name": "PMC — Sewerage",
+          "channel_type": "email",
+          "value": "pmc@punecorporation.org",
+          "source_url": "https://www.pmc.gov.in/"
+        },
+        "other": {
+          "department_name": "Pune Municipal Corporation",
+          "channel_type": "portal",
+          "value": "https://www.pmc.gov.in/",
+          "source_url": "https://www.pmc.gov.in/"
+        }
+      }
+    },
+    "hyderabad": {
+      "display_name": "Greater Hyderabad Municipal Corporation (GHMC)",
+      "aliases": [
+        "gachibowli",
+        "hitech city",
+        "kukatpally",
+        "madhapur",
+        "miyapur",
+        "uppal",
+        "lb nagar",
+        "cyberabad",
+        "secunderabad"
+      ],
+      "issues": {
+        "pothole": {
+          "department_name": "GHMC — Roads",
+          "channel_type": "email",
+          "value": "ghmccomplaints@ghmc.gov.in",
+          "source_url": "https://www.ghmc.gov.in/"
+        },
+        "garbage": {
+          "department_name": "GHMC — Sanitation",
+          "channel_type": "email",
+          "value": "ghmccomplaints@ghmc.gov.in",
+          "source_url": "https://www.ghmc.gov.in/"
+        },
+        "streetlight": {
+          "department_name": "GHMC — Electrical",
+          "channel_type": "email",
+          "value": "ghmccomplaints@ghmc.gov.in",
+          "source_url": "https://www.ghmc.gov.in/"
+        },
+        "water_leak": {
+          "department_name": "Hyderabad Metropolitan Water Supply and Sewerage Board",
+          "channel_type": "email",
+          "value": "customercare@hmwssb.gov.in",
+          "source_url": "https://www.hmwssb.telangana.gov.in/"
+        },
+        "sewage": {
+          "department_name": "HMWSSB — Sewerage",
+          "channel_type": "email",
+          "value": "customercare@hmwssb.gov.in",
+          "source_url": "https://www.hmwssb.telangana.gov.in/"
+        },
+        "other": {
+          "department_name": "GHMC — MyGHMC Portal",
+          "channel_type": "portal",
+          "value": "https://www.ghmc.gov.in/",
+          "source_url": "https://www.ghmc.gov.in/"
+        }
+      }
+    },
+    "coimbatore": {
+      "display_name": "Coimbatore City Municipal Corporation",
+      "aliases": [],
+      "issues": {
+        "pothole": {
+          "department_name": "CCMC — Roads",
+          "channel_type": "email",
+          "value": "ccmccomplaints@ccmcorp.tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "garbage": {
+          "department_name": "CCMC — Sanitation",
+          "channel_type": "email",
+          "value": "ccmccomplaints@ccmcorp.tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "streetlight": {
+          "department_name": "CCMC — Electrical",
+          "channel_type": "email",
+          "value": "ccmccomplaints@ccmcorp.tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "water_leak": {
+          "department_name": "CCMC — Water",
+          "channel_type": "email",
+          "value": "ccmccomplaints@ccmcorp.tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "sewage": {
+          "department_name": "CCMC — Sewerage",
+          "channel_type": "email",
+          "value": "ccmccomplaints@ccmcorp.tn.gov.in",
+          "source_url": "https://www.tnurbantree.tn.gov.in/municipal-e-mail-ids/"
+        },
+        "other": {
+          "department_name": "Coimbatore City Municipal Corporation",
+          "channel_type": "portal",
+          "value": "https://www.ccmc.gov.in/",
+          "source_url": "https://www.ccmc.gov.in/"
+        }
+      }
+    }
+  }
+}

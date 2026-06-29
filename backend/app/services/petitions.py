@@ -195,8 +195,12 @@ async def create_and_process_petition(
 
     authority_source = classification.authority_source
 
-    # Web search only when the local registry has no verified contact (avoids bad scraped emails).
-    if settings.authority_discovery_enabled and not classification.department_email:
+    # Web search only when verified/registry has no routable contact.
+    if (
+        settings.authority_discovery_enabled
+        and not classification.has_contact
+        and authority_source not in {"verified", "cpgrams"}
+    ):
         try:
             discovered = await discover_with_timeout(
                 area,
@@ -218,7 +222,10 @@ async def create_and_process_petition(
             logger.warning("Web authority discovery failed: %s", exc)
 
     lemma_powered = False
-    if lemma_service.is_lemma_available() and authority_source != "web_search":
+    if (
+        lemma_service.is_lemma_available()
+        and authority_source not in {"web_search", "verified", "cpgrams"}
+    ):
         try:
             lemma_class = await asyncio.wait_for(
                 lemma_service.classify_with_lemma(
@@ -328,6 +335,9 @@ async def create_and_process_petition(
         "issue_type": classification.issue_type,
         "department": classification.department,
         "department_email": classification.department_email,
+        "contact_channel": classification.contact_channel,
+        "contact_value": classification.contact_value,
+        "source_url": classification.source_url,
         "authority_source": authority_source,
         "classification_confidence": classification.confidence,
         "complaint_email_subject": draft.subject,
@@ -352,7 +362,12 @@ async def create_and_process_petition(
         {"_id": petition_id},
         {"$set": update_fields},
     )
-    await log_activity(db, petition_id, "drafted", f"Complaint email drafted for {classification.department_email}")
+    await log_activity(
+        db,
+        petition_id,
+        "drafted",
+        f"Complaint drafted for {classification.department} ({classification.contact_channel})",
+    )
     await log_activity(db, petition_id, "approval_pending", "Awaiting citizen approval")
 
     return (await get_petition(db, petition_id)) or {}
@@ -372,6 +387,46 @@ async def approve_and_send(
     if not req.approved:
         await log_activity(db, petition_id, "status_changed", "Email rejected by citizen")
         return petition
+
+    channel = str(petition.get("contact_channel") or "email").lower()
+    contact_value = str(petition.get("contact_value") or "").strip()
+
+    if channel in {"portal", "helpline", "cpgrams"} and not (req.to_email or "").strip():
+        now = datetime.now(timezone.utc)
+        updates = {
+            "complaint_email_subject": req.subject,
+            "complaint_email_draft": req.body,
+            "status": PetitionStatus.SUBMITTED.value,
+            "submitted_at": now,
+            "updated_at": now,
+        }
+        if req.is_escalation:
+            updates = {
+                "escalation_email_draft": req.body,
+                "status": PetitionStatus.ESCALATED.value,
+                "escalated_at": now,
+                "updated_at": now,
+            }
+        channel_label = {"portal": "official portal", "helpline": "helpline", "cpgrams": "CPGRAMS"}.get(
+            channel, channel
+        )
+        msg = (
+            f"Complaint approved for filing via {channel_label}: {contact_value}. "
+            "Copy the draft text and submit on the official channel."
+        )
+        await db.petitions.update_one({"_id": petition_id}, {"$set": updates})
+        await log_activity(
+            db,
+            petition_id,
+            "contact_filed",
+            msg,
+            {"channel": channel, "value": contact_value, "source_url": petition.get("source_url")},
+        )
+        result_petition = (await get_petition(db, petition_id)) or {}
+        result_petition["email_sent"] = False
+        result_petition["contact_filed"] = True
+        result_petition["send_message"] = msg
+        return result_petition
 
     to_email = (req.to_email or "").strip() or petition.get("department_email") or settings.demo_email_to
     if not to_email:
