@@ -23,7 +23,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if not settings.rate_limit_enabled:
             return await call_next(request)
 
-        if request.url.path in {"/api/health", "/api/health/lemma", "/api/setup"}:
+        if request.url.path in {"/api/health", "/api/health/live", "/api/health/lemma", "/api/setup"}:
             return await call_next(request)
 
         client_ip = request.client.host if request.client else "unknown"

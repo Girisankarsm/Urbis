@@ -166,7 +166,16 @@ FastAPI invokes Lemma agents via `lemma-sdk`; MongoDB remains the primary data s
 
 ## Deployment
 
-- **API:** Render (`render.yaml`, `backend/Dockerfile`)
-- **Frontend:** Vercel (`frontend/`, `VITE_API_URL`)
+See **[DEPLOY.md](DEPLOY.md)** for the full production guide.
+
+| Environment | API | Frontend | Database |
+|-------------|-----|----------|----------|
+| Local | `uvicorn` or Docker Compose | Vite `:5173` | Local MongoDB |
+| Production | Render (`render.yaml`) | Vercel (`VITE_API_URL`) | MongoDB Atlas |
+
+Health endpoints:
+
+- `GET /api/health/live` — liveness (load balancers)
+- `GET /api/health` — full status including Lemma, Cloudinary, email mode
 - **Database:** MongoDB Atlas
 - **Images:** Cloudinary

@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
+from app.deploy_checks import validate_deploy_config
 from app.services.lemma_service import (
     is_lemma_available,
     start_lemma_token_refresh_loop,
@@ -32,8 +33,14 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if settings.is_production and settings.session_secret == "change-me-in-production":
-        raise RuntimeError("SESSION_SECRET must be set to a long random value in production")
+    deploy_errors, deploy_warnings = validate_deploy_config()
+    for warning in deploy_warnings:
+        logger.warning("Deploy config: %s", warning)
+    if deploy_errors:
+        message = "Production configuration invalid:\n- " + "\n- ".join(deploy_errors)
+        if settings.is_production:
+            raise RuntimeError(message)
+        logger.warning(message)
     if settings.is_production and settings.google_auth_enabled:
         if settings.effective_cookie_samesite != "none" or not settings.effective_cookie_secure:
             logger.warning(
@@ -93,6 +100,12 @@ app.include_router(analytics_router)
 app.include_router(infrastructure_router)
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")
+
+
+@app.get("/api/health/live")
+async def health_live():
+    """Lightweight liveness probe for load balancers (no external calls)."""
+    return {"status": "ok", "app": "Urbis"}
 
 
 @app.get("/api/health")

@@ -1,0 +1,30 @@
+# Production API — connects to MongoDB Atlas (no local Mongo container).
+# Usage: copy .env.production.example → .env, then:
+#   docker compose -f docker-compose.prod.yml up -d --build
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: production
+      PORT: 8000
+      MONGODB_DB: ${MONGODB_DB:-urbis}
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: none
+      DEMO_EMAIL_REDIRECT: "false"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live')",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    restart: unless-stopped

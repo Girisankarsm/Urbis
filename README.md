@@ -229,14 +229,22 @@ GitHub Actions runs on every push to `main`.
 
 ## Production deployment
 
-| Component | Platform |
-|-----------|----------|
-| API | Render (`render.yaml`) |
-| Frontend | Vercel (`VITE_API_URL`) |
-| Database | MongoDB Atlas |
-| Images | Cloudinary |
+Full guide: **[DEPLOY.md](DEPLOY.md)**
 
-Production: `ENVIRONMENT=production`, `COOKIE_SECURE=true`, `COOKIE_SAMESITE=none`, production OAuth redirect URIs.
+| Component | Platform | Config |
+|-----------|----------|--------|
+| API | Render (`render.yaml`) | `.env.production.example` |
+| Frontend | Vercel | `VITE_API_URL` → Render API URL |
+| Database | MongoDB Atlas | `MONGODB_URL` |
+| Images | Cloudinary | Required on Render |
+
+```bash
+# Pre-flight before deploy
+./scripts/check-deploy-ready.sh
+```
+
+**Local dev (no Docker):** `./scripts/run-local.sh`  
+**Local dev (Docker):** `./scripts/start.sh` then `cd frontend && npm run dev`
 
 ---
 
@@ -247,10 +255,11 @@ Production: `ENVIRONMENT=production`, `COOKIE_SECURE=true`, `COOKIE_SAMESITE=non
 ├── pod/civic-lens/              # Lemma pod bundle
 ├── backend/app/                 # FastAPI routes, services, models
 ├── frontend/src/                # React pages and components
-├── scripts/                     # setup.sh, start.sh, test.sh
-├── ARCHITECTURE.md              # Full technical architecture
-├── API.md                       # API reference
-└── docker-compose.yml           # MongoDB + API
+├── scripts/                     # setup.sh, start.sh, run-local.sh, check-deploy-ready.sh
+├── DEPLOY.md                    # Production hosting guide (Render + Vercel + Atlas)
+├── render.yaml                  # Render blueprint
+├── docker-compose.yml           # Local: MongoDB + API
+├── docker-compose.prod.yml      # Self-hosted API → Atlas
 ```
 
 ---
