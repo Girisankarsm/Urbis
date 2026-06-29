@@ -37,7 +37,7 @@ export function Layout() {
           <nav className="flex items-center gap-0.5 sm:gap-1">
             <NavLink to="/dashboard" active={location.pathname === '/dashboard'}>Dashboard</NavLink>
             <NavLink to="/new" active={location.pathname === '/new'}>Report Issue</NavLink>
-            <NavLink to="/approvals" active={location.pathname.startsWith('/approvals')}>Approvals</NavLink>
+            <NavLink to="/hub" active={location.pathname.startsWith('/hub')}>Hub</NavLink>
             {!loading && googleEnabled && (
               user ? (
                 <UserMenu user={user} onLogout={logout} />

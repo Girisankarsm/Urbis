@@ -12,12 +12,18 @@ def test_assert_petition_access_allows_owner(monkeypatch):
     assert_petition_access({"reporter_user_id": "u1"}, {"_id": "u1"})
 
 
-def test_assert_petition_access_blocks_other_user(monkeypatch):
+def test_assert_petition_access_blocks_other_user_draft(monkeypatch):
     monkeypatch.setattr(settings, "google_client_id", "id")
     monkeypatch.setattr(settings, "google_client_secret", "secret")
     with pytest.raises(HTTPException) as exc:
-        assert_petition_access({"reporter_user_id": "u2"}, {"_id": "u1"})
+        assert_petition_access({"reporter_user_id": "u2", "status": "draft"}, {"_id": "u1"})
     assert exc.value.status_code == 403
+
+
+def test_assert_petition_access_allows_public_read(monkeypatch):
+    monkeypatch.setattr(settings, "google_client_id", "id")
+    monkeypatch.setattr(settings, "google_client_secret", "secret")
+    assert_petition_access({"reporter_user_id": "u2", "status": "submitted"}, {"_id": "u1"})
 
 
 def test_assert_petition_access_skipped_in_demo_mode(monkeypatch):

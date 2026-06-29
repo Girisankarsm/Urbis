@@ -64,10 +64,30 @@ export interface Petition {
     authority_routing?: { explanation?: string; reasoning?: string; authority_source?: string }
     severity_analysis?: { severity_score?: number; reasoning?: string }
   }
+  upvote_count?: number
+  upvoted_by_me?: boolean
   submitted_at?: string
   resolved_at?: string
   escalated_at?: string
   created_at?: string
+}
+
+export interface HubReport {
+  id: string
+  issue_type?: string
+  photo_url: string
+  description?: string
+  status: PetitionStatus
+  area_label: string
+  area_info?: Petition['area_info']
+  location?: Location
+  severity_score?: number
+  severity_level?: string
+  reporter_display: string
+  upvote_count: number
+  upvoted_by_me: boolean
+  created_at?: string
+  submitted_at?: string
 }
 
 export interface ActivityEvent {

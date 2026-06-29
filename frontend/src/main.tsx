@@ -5,8 +5,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { RequireAuth } from './components/RequireAuth'
 import { AuthProvider } from './context/AuthContext'
-import { ApprovalDetailPage, ApprovalsPage } from './pages/ApprovalPage'
+import { ApprovalDetailPage } from './pages/ApprovalPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { HubPage } from './pages/HubPage'
 import { NewIssuePage } from './pages/NewIssuePage'
 import { PetitionDetailPage } from './pages/PetitionDetailPage'
 import { ProfilePage } from './pages/ProfilePage'
@@ -32,7 +33,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="new" element={<NewIssuePage />} />
               <Route path="petitions/:id" element={<PetitionDetailPage />} />
-              <Route path="approvals" element={<ApprovalsPage />} />
+              <Route path="hub" element={<HubPage />} />
+              <Route path="approvals" element={<Navigate to="/hub" replace />} />
               <Route path="approvals/:id" element={<ApprovalDetailPage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>

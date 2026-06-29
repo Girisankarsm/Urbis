@@ -220,9 +220,9 @@ export function ApprovalDetailPage() {
 
   return (
     <div className="approval-page max-w-5xl mx-auto px-[clamp(0.25rem,2vw,0.5rem)]">
-      <Link to="/approvals" className="approval-breadcrumb">
+      <Link to="/dashboard" className="approval-breadcrumb">
         <BackArrowIcon className="w-4 h-4 shrink-0" />
-        Back to approvals
+        Back to dashboard
       </Link>
 
       <header className="approval-header-lead">

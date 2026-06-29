@@ -89,36 +89,43 @@ export function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <ul className="grid gap-3 sm:gap-4">
+            <ul className="grid gap-3 sm:gap-4">
             {petitions.map((p) => (
               <li key={p.id}>
-                <Link
-                  to={`/petitions/${p.id}`}
-                  className="dashboard-petition-card group flex gap-4 p-4 sm:p-5 rounded-[1.25rem] border border-stone-100 bg-stone-50/40"
-                >
-                  <img
-                    src={p.photo_url}
-                    alt=""
-                    className="w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 object-cover rounded-[1rem] flex-shrink-0 border border-stone-100"
-                  />
-                  <div className="flex-1 min-w-0 text-left">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <StatusBadge status={p.status} />
-                      {p.issue_type && (
-                        <span className="text-xs text-slate-500 capitalize">
-                          {p.issue_type.replace('_', ' ')}
-                        </span>
+                <div className="dashboard-petition-card group flex gap-4 p-4 sm:p-5 rounded-[1.25rem] border border-stone-100 bg-stone-50/40">
+                  <Link to={`/petitions/${p.id}`} className="flex gap-4 flex-1 min-w-0">
+                    <img
+                      src={p.photo_url}
+                      alt=""
+                      className="w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 object-cover rounded-[1rem] flex-shrink-0 border border-stone-100"
+                    />
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <StatusBadge status={p.status} />
+                        {p.issue_type && (
+                          <span className="text-xs text-slate-500 capitalize">
+                            {p.issue_type.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-medium text-civic-900 truncate group-hover:text-civic-700 transition-colors duration-200">
+                        {p.location?.address || `${p.location?.lat?.toFixed(4)}, ${p.location?.lng?.toFixed(4)}`}
+                      </p>
+                      <p className="text-sm text-slate-500 truncate mt-0.5">{p.description || 'No description'}</p>
+                      {p.department && (
+                        <p className="text-xs text-slate-400 mt-1.5">→ {p.department}</p>
                       )}
                     </div>
-                    <p className="font-medium text-civic-900 truncate group-hover:text-civic-700 transition-colors duration-200">
-                      {p.location?.address || `${p.location?.lat?.toFixed(4)}, ${p.location?.lng?.toFixed(4)}`}
-                    </p>
-                    <p className="text-sm text-slate-500 truncate mt-0.5">{p.description || 'No description'}</p>
-                    {p.department && (
-                      <p className="text-xs text-slate-400 mt-1.5">→ {p.department}</p>
-                    )}
-                  </div>
-                </Link>
+                  </Link>
+                  {p.status === 'draft' && (
+                    <Link
+                      to={`/approvals/${p.id}`}
+                      className="self-center shrink-0 px-3 py-2 text-sm font-medium bg-civic-600 text-white rounded-xl hover:bg-civic-700"
+                    >
+                      Approve
+                    </Link>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

@@ -61,7 +61,7 @@ export function PetitionDetailPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <Link to="/dashboard" className="text-sm text-civic-600 hover:underline mb-2 inline-block">← Back to dashboard</Link>
+          <Link to="/hub" className="text-sm text-civic-600 hover:underline mb-2 inline-block">← Back to hub</Link>
           <h2 className="text-2xl font-bold text-civic-900 flex items-center gap-3">
             Petition Detail
             <StatusBadge status={petition.status} />

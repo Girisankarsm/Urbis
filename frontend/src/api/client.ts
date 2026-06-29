@@ -1,4 +1,4 @@
-import type { ActivityEvent, Petition } from '../types'
+import type { HubReport, Petition } from '../types'
 
 export interface AuthUser {
   id: string
@@ -129,6 +129,22 @@ export async function uploadFollowUp(id: string, follow_up_photo_url: string): P
 
 export async function checkEscalation(): Promise<{ petition: Petition | null; message: string }> {
   return request('/petitions/escalation/check', { method: 'POST' })
+}
+
+export async function getHubReports(sort: 'popular' | 'recent' = 'popular'): Promise<{
+  reports: HubReport[]
+  count: number
+}> {
+  const q = new URLSearchParams({ sort })
+  return request(`/hub/reports?${q}`)
+}
+
+export async function toggleHubUpvote(petitionId: string): Promise<{
+  petition_id: string
+  upvote_count: number
+  upvoted_by_me: boolean
+}> {
+  return request(`/hub/reports/${petitionId}/upvote`, { method: 'POST' })
 }
 
 export async function getPendingApprovals(): Promise<{

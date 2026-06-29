@@ -17,6 +17,7 @@ from app.services.lemma_service import (
     warm_lemma_token,
 )
 from app.database import close_db, connect_db
+from app.routes.hub import router as hub_router
 from app.routes.infrastructure import router as infrastructure_router
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.routes.analytics import router as analytics_router
@@ -25,6 +26,7 @@ from app.routes.petitions import router as petitions_router
 from app.routes.uploads import upload_router
 from app.routes.vision import router as vision_router
 from app.services.verified_authorities import list_verified_cities
+from app.services.infrastructure.cache import ensure_overpass_cache_indexes
 from app.services.mongodb_indexes import ensure_indexes
 from app.services.petitions import seed_departments
 
@@ -97,6 +99,7 @@ app.include_router(petitions_router)
 app.include_router(upload_router)
 app.include_router(vision_router)
 app.include_router(analytics_router)
+app.include_router(hub_router)
 app.include_router(infrastructure_router)
 Path(settings.upload_dir).mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.upload_dir), name="uploads")

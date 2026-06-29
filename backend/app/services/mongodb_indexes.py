@@ -16,5 +16,8 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
     await db.petitions.create_index([("location.lat", 1), ("location.lng", 1)])
     await db.petitions.create_index([("issue_type", 1)])
     await db.petitions.create_index([("severity_score", -1)])
+    await db.petitions.create_index([("upvote_count", -1), ("submitted_at", -1)])
+    await db.petition_upvotes.create_index([("petition_id", 1), ("user_id", 1)], unique=True)
+    await db.petition_upvotes.create_index([("user_id", 1)])
     await db.activity_log.create_index([("petition_id", 1), ("timestamp", 1)])
     logger.info("MongoDB indexes ensured")

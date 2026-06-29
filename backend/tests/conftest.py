@@ -35,7 +35,7 @@ async def client():
         pytest.skip("MongoDB not available")
     await connect_db()
     db = get_db()
-    for collection in ("petitions", "activity_log", "users"):
+    for collection in ("petitions", "activity_log", "users", "petition_upvotes"):
         await db[collection].delete_many({})
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
@@ -57,7 +57,7 @@ async def oauth_client(monkeypatch):
 
     await connect_db()
     db = get_db()
-    for collection in ("petitions", "activity_log", "users"):
+    for collection in ("petitions", "activity_log", "users", "petition_upvotes"):
         await db[collection].delete_many({})
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
