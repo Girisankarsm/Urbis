@@ -1,228 +1,195 @@
 <p align="center">
   <strong>Urbis</strong><br />
-  <em>Report civic issues. Route to the right department. Track resolution.</em>
+  <em>See a civic problem. Route it to the right authority. Send it from your own Gmail.</em>
 </p>
 
 <p align="center">
   <a href="https://github.com/Girisankarsm/Urbis">GitHub</a> ·
   <a href="./ARCHITECTURE.md">Architecture</a> ·
-  <a href="./API.md">API Reference</a> ·
+  <a href="./API.md">API</a> ·
+  <a href="./DEPLOY.md">Deploy</a> ·
   <a href="https://gappy.ai">Gappy AI Hackathon</a>
 </p>
 
 ---
 
-## Overview
+## The problem
 
-**Urbis** is a citizen civic-issue reporting platform. Citizens photograph potholes, garbage, broken streetlights, and similar problems. AI classifies the issue, finds the correct municipal authority, drafts a formal complaint email, and sends it **only after the citizen approves** — from their own Gmail.
+Citizens across Indian cities notice potholes, garbage, broken streetlights, and drainage issues every day — but most never get reported. The barrier is not apathy; it is friction. People do not know which municipality, ward, or department is responsible, especially where jurisdictions overlap. A complaint sent to the wrong office disappears. Even when someone tries, they must find the right contact, write a formal email, and follow up alone.
 
-Built with **FastAPI · React · MongoDB · Lemma SDK · Google OAuth · Cloudinary**.
-
-| | |
-|---|---|
-| **Problem** | Citizens don't know which department to contact or how to file a formal complaint |
-| **Solution** | Photo + location → AI routing → human-approved email → track resolution |
-| **Differentiator** | Human-in-the-loop + citizen-owned Gmail send + nationwide Indian authority routing |
+**Urbis** closes that gap: photo + location pin → AI classifies and routes → citizen approves the draft → email sends from **their own Gmail** → status tracked end-to-end.
 
 ---
 
-## MVP at a glance
+## What Urbis does
 
-| Step | Screen | What happens |
-|:----:|--------|--------------|
-| 1 | `/` | Welcome onboarding → Google sign-in |
-| 2 | `/new` | Upload photo, pin location, add description |
-| 3 | Backend | Geocode → classify → route to authority → draft email |
-| 4 | `/approvals/:id` | Citizen edits **To**, subject, body → approves |
-| 5 | Gmail | Complaint sent from citizen's account to municipal authority |
-| 6 | `/dashboard` | Track status, upload follow-up, escalate if unresolved |
+| | |
+|---|---|
+| **For citizens** | Report in under a minute. Nothing is sent without your approval. |
+| **For municipalities** | Structured, location-tagged complaints to the correct desk the first time. |
+| **For the community** | Hub to discover and upvote issues that need urgent attention. |
+| **Built on Lemma** | Agentic pipeline on a `civic-lens` pod — agents, functions, and workflows — with a verified-registry fallback if the pod is down. |
+
+**Stack:** FastAPI · React · MongoDB · Lemma SDK · Google OAuth · Cloudinary
+
+---
+
+## How it works (60 seconds)
 
 ```
-Welcome (/)  →  Sign in  →  Dashboard (/dashboard)
-                                ├─ Report issue (/new)
-                                ├─ Approvals (/approvals)
-                                └─ Profile (/profile)
+Report photo + pin  →  Lemma classifies & routes  →  Draft complaint email
+        →  You review & approve  →  Sent from your Gmail  →  Track on Dashboard
+        →  Community upvotes on Hub  →  Follow-up photo checks resolution
 ```
 
-When Google OAuth is enabled, users only see **their own** petitions and approvals.
+| Step | Where | What happens |
+|:----:|-------|--------------|
+| 1 | `/` | Welcome → Google sign-in |
+| 2 | `/new` | Upload photo, pin location, describe issue |
+| 3 | Backend | Geocode → **Lemma pod** (workflow + agents) → draft email |
+| 4 | `/approvals/:id` | Edit recipient, subject, body → approve |
+| 5 | Gmail | Complaint sent from the citizen's account |
+| 6 | `/dashboard` | Track status, approve drafts, upload follow-up |
+| 7 | `/hub` | Browse public reports, upvote issues that matter |
+
+The nav header shows a **Lemma status dot** — green when the pod is live, gray in fallback mode.
+
+---
+
+## Lemma SDK (primary path)
+
+Urbis uses **[Lemma SDK](https://github.com/lemma-work/lemma-platform)** as the agentic infrastructure layer. When the pod is reachable, **Lemma runs first** on every report. Local verified contacts are fallback only.
+
+### civic-lens pod (`pod/civic-lens/`)
+
+| Type | Resources |
+|------|-----------|
+| **Agents** | `issue-classifier` · `complaint-drafter` · `resolution-checker` |
+| **Functions** | `create_petition` · `send_complaint_email` · `escalate_petition` · `update_resolution_status` |
+| **Workflows** | `petition-pipeline` · `escalation-pipeline` |
+| **Tables** | `petitions` · `departments` · `activity_log` |
+| **Schedule** | `daily-resolution-check` → escalation workflow |
+
+### When each fires
+
+| User action | Lemma resources |
+|-------------|-----------------|
+| Submit report | `petition-pipeline` workflow → `create_petition` → `issue-classifier` → `complaint-drafter` |
+| Approve & send | `send_complaint_email` function (+ Gmail from citizen) |
+| Upload follow-up | `resolution-checker` agent → `update_resolution_status` function |
+| Escalate stale case | `escalation-pipeline` workflow → `escalate_petition` function |
+
+Each petition stores `processing_path` (`lemma` \| `fallback`) and `lemma_invocations[]` for audit. Server logs use `[lemma]` prefixes during demos.
+
+**Fallback** (if Lemma times out or pod is unreachable): verified authority registry → regional metro contacts → web search → manual edit on approval screen.
 
 ---
 
 ## Architecture
 
-### System overview
-
 <p align="center">
-  <img src="./docs/images/system-architecture.png" alt="Urbis system architecture — React, FastAPI, MongoDB, Lemma, Cloudinary, Gmail" width="900" />
+  <img src="./docs/images/system-architecture.png" alt="Urbis system architecture" width="900" />
 </p>
 
 <p align="center">
-  <sub>React SPA → FastAPI backend → MongoDB · Lemma agents · Gmail · Cloudinary · Nominatim · DuckDuckGo</sub>
-</p>
-
-| Layer | Stack | Role |
-|-------|-------|------|
-| **Frontend** | React 18, Vite, Tailwind | Report, approve, track |
-| **Backend** | FastAPI, Motor | REST API, OAuth, petition pipeline |
-| **Database** | MongoDB | Petitions, users, activity log |
-| **AI** | Lemma SDK + OpenAI Vision (optional) | Classify, draft, verify resolution |
-| **Email** | Gmail API (primary), Brevo SMTP (fallback) | Citizen-owned complaint delivery |
-| **Images** | Cloudinary | Public photo URLs in complaint emails |
-
-### Complaint pipeline
-
-<p align="center">
-  <img src="./docs/images/complaint-pipeline.png" alt="Urbis complaint pipeline sequence diagram" width="900" />
+  <sub>React → FastAPI → MongoDB · Lemma pod · Gmail · Cloudinary · Nominatim</sub>
 </p>
 
 <p align="center">
-  <sub>Photo upload → geocode → authority lookup → Lemma classify/draft → human approval → Gmail send → track</sub>
+  <img src="./docs/images/complaint-pipeline.png" alt="Complaint pipeline" width="900" />
 </p>
 
-### Authority routing priority
-
-When the Lemma pod is live, **civic-lens runs first** (workflow → agents → functions). Local verified registry + regional routing is used only if Lemma times out or is unreachable. Each petition stores `processing_path` (`lemma` | `fallback`) and `lemma_invocations` for demo proof.
-
-Fallback order when Lemma is down:
-
-1. **Verified registry** — source-backed contacts in `verified_authorities.json`
-2. **Regional registry** — major Indian metros
-3. **Web search** — DuckDuckGo when no email is found
-4. **Manual edit** — citizen corrects the **To** field on approval
+| Layer | Technology | Role |
+|-------|------------|------|
+| Frontend | React 18, Vite, Tailwind | Report, approve, hub, dashboard |
+| API | FastAPI, Motor | OAuth, petition pipeline, hub |
+| Database | MongoDB | Petitions, users, activity, upvotes |
+| AI | Lemma SDK (+ optional OpenAI Vision) | Classify, draft, verify resolution |
+| Email | Gmail API (primary), Brevo SMTP (fallback) | Citizen-owned delivery |
+| Images | Cloudinary | Persistent photo URLs in complaints |
 
 ---
 
 ## Features
 
-### Core MVP
+### Core
 
-| Feature | Description |
-|---------|-------------|
-| Photo + map reporting | Upload issue photos, pin location with geolocation |
-| AI classification | Vision + registry + web search + Lemma agents |
-| Human-in-the-loop | Edit recipient, subject, and body before send |
-| Gmail send | OAuth — complaints send from the citizen's own Gmail |
-| Dashboard & tracking | Filter by status, timeline, follow-up photos |
-| Escalation | Auto-draft escalation emails after 3 days without resolution |
-| Profile | View account, your reports, delete petitions |
+- **Photo + map reporting** — geolocation, duplicate warnings nearby
+- **Lemma-first routing** — agents find the right department; verified `.gov.in` contacts with source links
+- **Human-in-the-loop** — edit To, subject, and body before anything is sent
+- **Gmail send** — complaints appear in the citizen's Sent folder
+- **Dashboard** — filter by status, minimal timeline, follow-up photos
+- **Community Hub** — public reports, upvotes, issue filters
+- **Escalation** — auto-draft after 3 days without resolution
 
 ### AI extensions
 
-| Feature | Description |
-|---------|-------------|
-| Vision classification | Auto-detect issue type from photos with confidence + reasoning |
-| Severity analysis | 0–100 score using nearby schools, hospitals, traffic |
-| AI explainability | Stored confidence, reasoning, authority routing context |
-| Duplicate detection | Warns about nearby similar reports before submission |
-| Resolution verification | Before/after image comparison (resolved / partial / not resolved) |
-| **Nearby infrastructure analysis** | Overpass POI lookup, distance-decayed severity, map markers |
-| Analytics API | Trends, severity distribution, resolution time, department stats |
-
-Weights, alpha, and decay constants live in `backend/app/services/infrastructure/infrastructure_scoring.json` (editable without code changes).
-
----
-
-## Nearby infrastructure analysis
-
-When a report is submitted, the API queries Openpass (with mirror fallback) for schools, hospitals, clinics, bus stops, stations, government offices, and major roads within a configurable radius. Results are cached in MongoDB (`overpass_cache`, 7-day TTL) keyed by rounded lat/lng.
-
-Severity uses distance-decayed scoring: `finalSeverity = base × (1 + α × normalizedInfra)`. Base issue type always dominates. Overpass failures never block report submission.
-
-Map markers (schools, hospitals, bus stops, stations) appear on the report map via Leaflet marker clustering.
-
----
-
-## Lemma SDK integration
-
-The FastAPI backend connects to Lemma through **`lemma-sdk`** (`backend/app/services/lemma_service.py`).
-
-| Phase | Lemma resource | Fallback |
-|-------|----------------|----------|
-| Classify + route | `issue-classifier` agent | Regional registry + geocoding |
-| Draft email | `complaint-drafter` agent | Local `draft_complaint_email()` |
-| Send email | `send_complaint_email` function | Citizen Gmail → Brevo SMTP |
-| Resolution check | `resolution-checker` agent | Heuristic / OpenAI Vision |
-
-**Primary database is MongoDB** — petitions, users, and activity logs. Lemma pod tables are used by agents during classification.
-
-Pod bundle: `pod/civic-lens/` — agents, functions, workflows, municipal knowledge base.
+- Vision classification (optional OpenAI)
+- Severity scoring with nearby infrastructure (schools, hospitals, transit)
+- Resolution verification (before/after photos)
+- Analytics API — trends, departments, resolution times
 
 ---
 
 ## Quick start
 
-**Requirements:** Docker Desktop (or local MongoDB), Python 3.11+, Node 18+
+**Requirements:** Docker (or local MongoDB), Python 3.11+, Node 18+
 
 ```bash
-# One-time setup
-./scripts/setup.sh
-
-# Start API + MongoDB
-./scripts/start.sh
-
-# Start frontend (second terminal)
-cd frontend && npm run dev
+./scripts/setup.sh          # once — installs deps, copies .env
+./scripts/run-local.sh      # API + frontend together
 ```
 
 | Service | URL |
 |---------|-----|
-| **App** | http://localhost:5173 |
-| **API health** | http://localhost:8000/api/health |
-| **Lemma health** | http://localhost:8000/api/health/lemma |
+| App | http://localhost:5173 |
+| API health | http://localhost:8000/api/health |
+| Lemma health | http://localhost:8000/api/health/lemma |
 
-**Without Docker** (local MongoDB already running):
+### Lemma setup (required for full demo)
+
+```bash
+cd backend && .venv/bin/lemma auth login
+cd .. && ./scripts/sync-lemma-env.sh    # writes LEMMA_REFRESH_TOKEN to .env
+# Set LEMMA_POD_ID and LEMMA_ORG_ID from lemma.work dashboard
+./scripts/restart-api.sh
+```
+
+Confirm the header dot is **green** and `/api/health/lemma` returns `live: true`.
+
+### Without Docker
 
 ```bash
 cd backend && MONGODB_URL=mongodb://localhost:27017 .venv/bin/uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
 ```
 
-After `.env` changes:
-
-```bash
-./scripts/restart-api.sh
-```
-
 ---
 
 ## Environment variables
 
-Copy `.env.example` to `.env`:
+Copy `.env.example` → `.env`. Minimum for local demo:
 
 | Variable | Purpose |
 |----------|---------|
-| `MONGODB_URL` | Local Mongo or MongoDB Atlas |
-| `LEMMA_REFRESH_TOKEN`, `LEMMA_POD_ID` | Lemma agents (auto-refresh) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google OAuth + Gmail send |
-| `SMTP_*` | Brevo SMTP fallback |
-| `CLOUDINARY_*` | Cloud image storage |
-| `OPENAI_API_KEY` | Optional — vision classification + resolution |
-| `INFRASTRUCTURE_RADIUS_M` | Overpass search radius for severity (default 500) |
-| `SESSION_SECRET` | JWT session signing (required in production) |
-| `DEMO_EMAIL_REDIRECT` | Set `false` to send to real authorities |
+| `MONGODB_URL` | `mongodb://localhost:27017` or Atlas |
+| `LEMMA_REFRESH_TOKEN`, `LEMMA_POD_ID`, `LEMMA_ORG_ID` | Lemma civic-lens pod |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Sign-in + Gmail send |
+| `CLOUDINARY_*` | Image hosting (required on Render) |
+| `SMTP_*` | Brevo fallback if Gmail unavailable |
+| `OPENAI_API_KEY` | Optional vision + resolution |
+| `DEMO_EMAIL_REDIRECT` | Set `false` to email real authorities |
 
-See `.env.example` for the full list.
-
----
-
-## Email & auth
-
-**Gmail (recommended):** Citizens sign in with Google; approved complaints send from their Gmail via Gmail API.
-
-1. Enable **Gmail API** in [Google Cloud Console](https://console.cloud.google.com)
-2. OAuth redirect URI: `http://localhost:8000/api/auth/google/callback`
-3. Add test users if app is in Testing mode
-
-**Brevo SMTP (fallback):** [app.brevo.com](https://app.brevo.com) — free 300 emails/day.
+Production template: `.env.production.example` · Full list: `.env.example`
 
 ---
 
 ## Tests & CI
 
 ```bash
-./scripts/test.sh          # backend + frontend
-cd backend && pytest -q    # API tests
-cd frontend && npm test    # Vitest
+./scripts/test.sh              # backend + frontend
+cd backend && pytest -q        # 53 tests
+cd frontend && npm test
 ```
 
 GitHub Actions runs on every push to `main`.
@@ -231,51 +198,47 @@ GitHub Actions runs on every push to `main`.
 
 ## Production deployment
 
-Full guide: **[DEPLOY.md](DEPLOY.md)**
-
-| Component | Platform | Config |
-|-----------|----------|--------|
-| API | Render (`render.yaml`) | `.env.production.example` |
-| Frontend | Vercel | `VITE_API_URL` → Render API URL |
-| Database | MongoDB Atlas | `MONGODB_URL` |
-| Images | Cloudinary | Required on Render |
+See **[DEPLOY.md](DEPLOY.md)** for Render + Vercel + MongoDB Atlas + Cloudinary.
 
 ```bash
-# Pre-flight before deploy
-./scripts/check-deploy-ready.sh
+./scripts/check-deploy-ready.sh   # pre-flight
 ```
 
-**Local dev (no Docker):** `./scripts/run-local.sh`  
-**Local dev (Docker):** `./scripts/start.sh` then `cd frontend && npm run dev`
+| Component | Platform |
+|-----------|----------|
+| API | Render (`render.yaml`) |
+| Frontend | Vercel or Render static site |
+| Database | MongoDB Atlas |
+| Lemma pod | lemma.work (grant access for judging) |
 
 ---
 
 ## Project structure
 
 ```
-├── docs/images/                 # Architecture diagrams (README)
-├── pod/civic-lens/              # Lemma pod bundle
-├── backend/app/                 # FastAPI routes, services, models
-├── frontend/src/                # React pages and components
-├── scripts/                     # setup.sh, start.sh, run-local.sh, check-deploy-ready.sh
-├── DEPLOY.md                    # Production hosting guide (Render + Vercel + Atlas)
-├── render.yaml                  # Render blueprint
-├── docker-compose.yml           # Local: MongoDB + API
-├── docker-compose.prod.yml      # Self-hosted API → Atlas
+pod/civic-lens/          Lemma agents, functions, workflows, knowledge base
+backend/app/             FastAPI routes, services, verified authority data
+frontend/src/            React pages (Hub, Dashboard, Report, Approval)
+scripts/                 setup, run-local, sync-lemma-env, deploy checks
+DEPLOY.md                Production hosting guide
+render.yaml              Render blueprint
 ```
 
 ---
 
-## Hackathon demo tips
+## Hackathon demo script (~90s)
 
-- Start at the **welcome screen** — walk through the 5-step flow before signing in
-- Report from a real Indian location — check **authority source** on approval (`registry`, `web_search`, `lemma`)
-- Set `DEMO_EMAIL_REDIRECT=false` so emails go to the authority
-- Trigger escalation: `POST /api/petitions/escalation/check`
-- Analytics: `GET /api/analytics/summary`
+1. **Sign in** with Google → note green **Lemma** dot in header.
+2. **Report** a real issue (photo + pin in Chennai/Bengaluru) → backend logs `[lemma] issue-classifier agent called`.
+3. **Dashboard** → open draft → **Review & Approve** → verify authority email + source link.
+4. **Send** from Gmail → timeline shows `Sent`.
+5. **Hub** → upvote the public report.
+6. Show `/api/health/lemma` — `processing_path: lemma` on the petition record.
+
+**Submission links:** [GitHub](https://github.com/Girisankarsm/Urbis) · Lemma pod: `pod/civic-lens/`
 
 ---
 
 ## License
 
-MIT — Gappy AI Hackathon project.
+MIT — built for the [Gappy AI Hackathon](https://gappy.ai).

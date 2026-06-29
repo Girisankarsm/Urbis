@@ -14,7 +14,6 @@ const FILTERS: { label: string; value: PetitionStatus | '' }[] = [
   { label: 'Submitted', value: 'submitted' },
   { label: 'Under Review', value: 'under_review' },
   { label: 'Resolved', value: 'resolved' },
-  { label: 'Escalated', value: 'escalated' },
 ]
 
 export function DashboardPage() {
