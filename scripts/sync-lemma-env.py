@@ -45,14 +45,14 @@ def main() -> int:
 
     text = ENV_PATH.read_text()
     text = set_var(text, "LEMMA_REFRESH_TOKEN", refresh)
-    if access:
-        text = set_var(text, "LEMMA_TOKEN", access)
+    # Drop stale access token — API auto-refreshes from LEMMA_REFRESH_TOKEN.
+    text = re.sub(r"^LEMMA_TOKEN=.*\n", "", text, flags=re.M)
     if pod_id:
         text = set_var(text, "LEMMA_POD_ID", pod_id)
     if org_id:
         text = set_var(text, "LEMMA_ORG_ID", org_id)
     ENV_PATH.write_text(text)
-    print("Updated .env: LEMMA_REFRESH_TOKEN, LEMMA_TOKEN, LEMMA_POD_ID, LEMMA_ORG_ID")
+    print("Updated .env: LEMMA_REFRESH_TOKEN, LEMMA_POD_ID, LEMMA_ORG_ID (removed LEMMA_TOKEN)")
     return 0
 
 
