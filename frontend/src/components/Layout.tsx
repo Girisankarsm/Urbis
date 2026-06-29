@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 
 import { useAuth } from '../context/AuthContext'
 import { UserMenu } from './UserMenu'
-import { LemmaStatusDot } from './LemmaStatusDot'
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled. Add your email as a test user in Google Cloud Console if the app is in Testing mode.',
@@ -36,7 +35,6 @@ export function Layout() {
             </div>
           </Link>
           <nav className="flex items-center gap-0.5 sm:gap-1">
-            <LemmaStatusDot />
             <NavLink to="/dashboard" active={location.pathname === '/dashboard'}>Dashboard</NavLink>
             <NavLink to="/new" active={location.pathname === '/new'}>Report Issue</NavLink>
             <NavLink to="/hub" active={location.pathname.startsWith('/hub')}>Hub</NavLink>

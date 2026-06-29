@@ -47,21 +47,17 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard-page">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 sm:gap-6 mb-[clamp(1.5rem,4vw,2.25rem)]">
-        <div className="text-center sm:text-left">
-          <h2 className="text-[clamp(1.5rem,4vw,1.75rem)] font-semibold text-civic-900 tracking-tight">
-            My Petitions
-          </h2>
-          <p className="text-slate-600 text-[clamp(0.875rem,2vw,0.95rem)] mt-1">
-            Track civic issues you've reported
-          </p>
+      <header className="dashboard-page-header">
+        <div className="dashboard-page-intro">
+          <h2 className="dashboard-page-title">My Petitions</h2>
+          <p className="dashboard-page-subtitle">Track civic issues you've reported</p>
         </div>
-        <Link to="/new" className="dashboard-btn-primary w-full sm:w-auto inline-flex items-center justify-center min-h-[48px] px-5 py-2.5 rounded-[1.1rem] font-medium text-white">
+        <Link to="/new" className="dashboard-btn-primary dashboard-page-cta">
           + Report Issue
         </Link>
       </header>
 
-      <div className="dashboard-card rounded-[1.5rem] sm:rounded-[1.75rem] border border-stone-200/70 bg-white shadow-[0_4px_28px_-10px_rgba(12,74,110,0.1)] p-[clamp(1rem,3vw,1.75rem)] sm:p-[clamp(1.25rem,3.5vw,2rem)]">
+      <div className="dashboard-card">
         <DashboardFilterTabs filters={FILTERS} value={filter} onChange={setFilter} />
 
         {error && (
@@ -88,39 +84,34 @@ export function DashboardPage() {
             </Link>
           </div>
         ) : (
-            <ul className="grid gap-3 sm:gap-4">
+            <ul className="dashboard-petition-list">
             {petitions.map((p) => (
               <li key={p.id}>
-                <div className="dashboard-petition-card group flex gap-4 p-4 sm:p-5 rounded-[1.25rem] border border-stone-100 bg-stone-50/40">
-                  <Link to={`/petitions/${p.id}`} className="flex gap-4 flex-1 min-w-0">
-                    <img
-                      src={p.photo_url}
-                      alt=""
-                      className="w-[4.5rem] h-[4.5rem] sm:w-20 sm:h-20 object-cover rounded-[1rem] flex-shrink-0 border border-stone-100"
-                    />
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                <div className="dashboard-petition-card group">
+                  <Link to={`/petitions/${p.id}`} className="dashboard-petition-link">
+                    <div className="dashboard-petition-media">
+                      <img src={p.photo_url} alt="" className="dashboard-petition-photo" />
+                    </div>
+                    <div className="dashboard-petition-body">
+                      <div className="dashboard-petition-meta">
                         <StatusBadge status={p.status} />
                         {p.issue_type && (
-                          <span className="text-xs text-slate-500 capitalize">
+                          <span className="dashboard-petition-type">
                             {p.issue_type.replace('_', ' ')}
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-civic-900 truncate group-hover:text-civic-700 transition-colors duration-200">
+                      <p className="dashboard-petition-location">
                         {p.location?.address || `${p.location?.lat?.toFixed(4)}, ${p.location?.lng?.toFixed(4)}`}
                       </p>
-                      <p className="text-sm text-slate-500 truncate mt-0.5">{p.description || 'No description'}</p>
+                      <p className="dashboard-petition-desc">{p.description || 'No description'}</p>
                       {p.department && (
-                        <p className="text-xs text-slate-400 mt-1.5">→ {p.department}</p>
+                        <p className="dashboard-petition-dept">→ {p.department}</p>
                       )}
                     </div>
                   </Link>
                   {p.status === 'draft' && (
-                    <Link
-                      to={`/approvals/${p.id}`}
-                      className="self-center shrink-0 px-3 py-2 text-sm font-medium bg-civic-600 text-white rounded-xl hover:bg-civic-700"
-                    >
+                    <Link to={`/approvals/${p.id}`} className="dashboard-petition-approve">
                       Approve
                     </Link>
                   )}
