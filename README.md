@@ -5,9 +5,9 @@
 
 <p align="center">
   <a href="https://github.com/Girisankarsm/Urbis">GitHub</a> ·
-  <a href="./ARCHITECTURE.md">Architecture</a> ·
-  <a href="./API.md">API</a> ·
-  <a href="./DEPLOY.md">Deploy</a> ·
+  <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
+  <a href="./docs/API.md">API</a> ·
+  <a href="./docs/DEPLOY.md">Deploy</a> ·
   <a href="https://gappy.ai">Gappy AI Hackathon</a>
 </p>
 
@@ -52,7 +52,7 @@ Report photo + pin  →  Lemma classifies & routes  →  Draft complaint email
 | 6 | `/dashboard` | Track status, approve drafts, upload follow-up |
 | 7 | `/hub` | Browse public reports, upvote issues that matter |
 
-The nav header shows a **Lemma status dot** — green when the pod is live, gray in fallback mode.
+The nav polls Lemma health in the background; check `/api/health/lemma` during demos.
 
 ---
 
@@ -155,7 +155,7 @@ cd .. && ./scripts/sync-lemma-env.sh    # writes LEMMA_REFRESH_TOKEN to .env
 ./scripts/restart-api.sh
 ```
 
-Confirm the header dot is **green** and `/api/health/lemma` returns `live: true`.
+Confirm `/api/health/lemma` returns `live: true` before judging.
 
 ### Without Docker
 
@@ -198,7 +198,7 @@ GitHub Actions runs on every push to `main`.
 
 ## Production deployment
 
-See **[DEPLOY.md](DEPLOY.md)** for Render + Vercel + MongoDB Atlas + Cloudinary.
+See **[docs/DEPLOY.md](docs/DEPLOY.md)** for Render + Vercel + MongoDB Atlas + Cloudinary.
 
 ```bash
 ./scripts/check-deploy-ready.sh   # pre-flight
@@ -216,19 +216,22 @@ See **[DEPLOY.md](DEPLOY.md)** for Render + Vercel + MongoDB Atlas + Cloudinary.
 ## Project structure
 
 ```
-pod/civic-lens/          Lemma agents, functions, workflows, knowledge base
-backend/app/             FastAPI routes, services, verified authority data
-frontend/src/            React pages (Hub, Dashboard, Report, Approval)
+backend/                 FastAPI API, services, tests
+frontend/                React + Vite SPA
+pod/civic-lens/          Lemma agents, functions, workflows
+docs/                    Architecture, API reference, deploy guide
 scripts/                 setup, run-local, sync-lemma-env, deploy checks
-DEPLOY.md                Production hosting guide
-render.yaml              Render blueprint
+docker-compose.yml       Local MongoDB + API (Docker)
+render.yaml              Render production blueprint
+.env.example             Local environment template
+.env.production.example  Production environment template
 ```
 
 ---
 
 ## Hackathon demo script (~90s)
 
-1. **Sign in** with Google → note green **Lemma** dot in header.
+1. **Sign in** with Google → check `/api/health/lemma` is live.
 2. **Report** a real issue (photo + pin in Chennai/Bengaluru) → backend logs `[lemma] issue-classifier agent called`.
 3. **Dashboard** → open draft → **Review & Approve** → verify authority email + source link.
 4. **Send** from Gmail → timeline shows `Sent`.

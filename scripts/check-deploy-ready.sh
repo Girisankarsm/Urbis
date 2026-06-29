@@ -33,12 +33,12 @@ for e in errors:
 
 if errors:
     print()
-    print("Fix errors above before deploying. See DEPLOY.md")
+    print("Fix errors above before deploying. See docs/DEPLOY.md")
     sys.exit(1)
 
 if warnings:
     print()
-    print("Warnings only — deploy can proceed but review DEPLOY.md")
+    print("Warnings only — deploy can proceed but review docs/DEPLOY.md")
 else:
     print()
     print("Production configuration looks good.")

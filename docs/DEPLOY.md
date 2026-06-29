@@ -57,7 +57,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ### Render environment variables
 
-Copy from [`.env.production.example`](.env.production.example):
+Copy from [`../.env.production.example`](../.env.production.example):
 
 | Variable | Example | Required |
 |----------|---------|----------|
@@ -193,6 +193,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push to `main`:
 ## Project layout (deploy-relevant)
 
 ```
+docs/DEPLOY.md           # This guide
 render.yaml              # Render blueprint
 docker-compose.yml       # Local dev (Mongo + API)
 docker-compose.prod.yml  # Self-hosted API → Atlas
