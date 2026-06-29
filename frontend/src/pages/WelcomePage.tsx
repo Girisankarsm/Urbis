@@ -10,6 +10,10 @@ import { useInView } from '../hooks/useInView'
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled. Add your email as a test user in Google Cloud Console if the app is in Testing mode.',
   denied: 'Google sign-in was denied. Publish the OAuth consent screen or add yourself as a test user.',
+  oauth_failed:
+    'Google sign-in could not be completed. Add this site’s /api/auth/google/callback URL to Google Cloud Console → OAuth redirect URIs, then try again.',
+  unknown:
+    'Google sign-in could not be completed. Add this site’s /api/auth/google/callback URL to Google Cloud Console → OAuth redirect URIs, then try again.',
   session_failed:
     'Sign-in completed but your session was not saved. On mobile, use the site in Safari/Chrome (not an in-app browser). Try again, or clear site data and sign in once more.',
 }
@@ -53,7 +57,6 @@ export function WelcomePage() {
     const code = params.get('auth_error')
     if (code) {
       setAuthError(AUTH_ERROR_MESSAGES[code] ?? 'Sign-in failed. Please try again.')
-      window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
 

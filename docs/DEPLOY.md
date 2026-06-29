@@ -108,7 +108,9 @@ curl https://<your-api>.onrender.com/api/health
 In [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
 1. OAuth client → **Authorized JavaScript origins**: `https://<vercel-domain>`
-2. **Authorized redirect URIs**: `https://<vercel-domain>/api/auth/google/callback` (proxied to Render)
+2. **Authorized redirect URIs** (add **both** during migration, then you can drop Render):
+   - `https://<vercel-domain>/api/auth/google/callback` **(required — login uses Vercel proxy)**
+   - `https://<render-api>/api/auth/google/callback` (optional legacy)
 3. Publish OAuth consent screen (Testing → Production when ready).
 
 Set on Render:

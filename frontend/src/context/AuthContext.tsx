@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { fetchAuthMe, fetchAuthStatus, loginUrl, logout as apiLogout } from '../api/client'
@@ -10,6 +10,8 @@ export interface AuthUser {
   picture?: string
   can_send_gmail: boolean
 }
+
+const PENDING_SIGN_IN_KEY = 'urbis_pending_sign_in'
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [googleEnabled, setGoogleEnabled] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const bootstrapped = useRef(false)
 
   const clearAuthError = useCallback(() => setAuthError(null), [])
 
@@ -51,18 +54,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (bootstrapped.current) return
+    bootstrapped.current = true
+
     const params = new URLSearchParams(window.location.search)
-    const justSignedIn = params.has('signed_in')
-    const authError = params.get('auth_error')
-    if (justSignedIn || authError) {
+    const urlAuthError = params.get('auth_error')
+
+    if (params.has('signed_in')) {
+      sessionStorage.setItem(PENDING_SIGN_IN_KEY, '1')
+    }
+    if (params.has('signed_in') || urlAuthError) {
       window.history.replaceState({}, '', window.location.pathname)
     }
+    if (urlAuthError) {
+      setAuthError(urlAuthError)
+    }
+
+    const pendingSignIn = sessionStorage.getItem(PENDING_SIGN_IN_KEY) === '1'
+
     refresh().then((me) => {
       setLoading(false)
-      if (justSignedIn && me) {
-        navigate('/dashboard', { replace: true })
-      } else if (justSignedIn && !me) {
-        setAuthError('session_failed')
+      if (pendingSignIn) {
+        sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
+        if (me) {
+          navigate('/dashboard', { replace: true })
+        } else {
+          setAuthError('session_failed')
+        }
       }
     })
   }, [refresh, navigate])
@@ -74,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await apiLogout()
     setUser(null)
+    sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
   }
 
   return (

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, user_profile
+from app.services.oauth_redirect import oauth_redirect_uri
 from app.services.session import COOKIE_NAME, SESSION_DAYS, create_session_token
 from app.services.users import upsert_google_user
 
@@ -50,7 +51,7 @@ async def auth_status():
 async def google_login(request: Request):
     if not _auth_enabled():
         raise HTTPException(503, "Google OAuth is not configured")
-    redirect_uri = settings.google_redirect_uri
+    redirect_uri = oauth_redirect_uri(request)
     # Explicit consent + offline access so Google returns a refresh_token for Gmail send.
     return await oauth.google.authorize_redirect(
         request,
@@ -68,9 +69,9 @@ async def google_callback(request: Request):
 
     try:
         token = await oauth.google.authorize_access_token(request)
-    except Exception as exc:
+    except Exception:
         logger.exception("Google OAuth callback failed")
-        error = request.query_params.get("error", "unknown")
+        error = request.query_params.get("error", "oauth_failed")
         return RedirectResponse(
             url=f"{settings.frontend_url}/?auth_error={error}",
             status_code=302,
