@@ -25,6 +25,7 @@ export function HubPage() {
   const [reports, setReports] = useState<HubReport[]>([])
   const [sort, setSort] = useState<SortMode>('popular')
   const [issueFilter, setIssueFilter] = useState<IssueFilter>('')
+  const [filterOpen, setFilterOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [votingId, setVotingId] = useState<string | null>(null)
@@ -50,6 +51,13 @@ export function HubPage() {
     const top = reports[0]
     return { count: reports.length, totalUpvotes, yours, top }
   }, [reports])
+
+  const activeFilterLabel = ISSUE_FILTERS.find((f) => f.value === issueFilter)?.label ?? 'All issues'
+
+  const handleFilterSelect = (value: IssueFilter) => {
+    setIssueFilter(value)
+    setFilterOpen(false)
+  }
 
   const handleUpvote = async (reportId: string, e: React.MouseEvent) => {
     e.preventDefault()
@@ -110,32 +118,56 @@ export function HubPage() {
 
       <section className="hub-panel">
         <div className="hub-toolbar">
-          <div className="hub-toolbar-group">
-            <span className="hub-toolbar-label">Sort</span>
-            <div className="hub-pill-group" role="tablist" aria-label="Sort reports">
-              <SortButton active={sort === 'popular'} onClick={() => setSort('popular')}>
-                Most upvoted
-              </SortButton>
-              <SortButton active={sort === 'recent'} onClick={() => setSort('recent')}>
-                Most recent
-              </SortButton>
+          {!filterOpen ? (
+            <div className="hub-toolbar-row">
+              <div className="hub-toolbar-group">
+                <span className="hub-toolbar-label">Sort</span>
+                <div className="hub-pill-group" role="tablist" aria-label="Sort reports">
+                  <SortButton active={sort === 'popular'} onClick={() => setSort('popular')}>
+                    Most upvoted
+                  </SortButton>
+                  <SortButton active={sort === 'recent'} onClick={() => setSort('recent')}>
+                    Most recent
+                  </SortButton>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`hub-filter-toggle ${issueFilter ? 'hub-filter-toggle--selected' : ''}`}
+                onClick={() => setFilterOpen(true)}
+                aria-expanded={false}
+              >
+                Filter
+                {issueFilter ? <span className="hub-filter-toggle-value">{activeFilterLabel}</span> : null}
+              </button>
             </div>
-          </div>
-          <div className="hub-toolbar-group hub-toolbar-group--grow">
-            <span className="hub-toolbar-label">Filter</span>
-            <div className="hub-filter-scroll">
-              {ISSUE_FILTERS.map((f) => (
+          ) : (
+            <div className="hub-filter-panel">
+              <div className="hub-filter-panel-head">
+                <span className="hub-toolbar-label">Filter</span>
                 <button
-                  key={f.value || 'all'}
                   type="button"
-                  onClick={() => setIssueFilter(f.value)}
-                  className={`hub-filter-chip ${issueFilter === f.value ? 'hub-filter-chip--active' : ''}`}
+                  className="hub-filter-close"
+                  onClick={() => setFilterOpen(false)}
+                  aria-label="Close filter"
                 >
-                  {f.label}
+                  Done
                 </button>
-              ))}
+              </div>
+              <div className="hub-filter-scroll">
+                {ISSUE_FILTERS.map((f) => (
+                  <button
+                    key={f.value || 'all'}
+                    type="button"
+                    onClick={() => handleFilterSelect(f.value)}
+                    className={`hub-filter-chip ${issueFilter === f.value ? 'hub-filter-chip--active' : ''}`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <p className="hub-hint">
@@ -172,7 +204,7 @@ export function HubPage() {
                 Report the first issue
               </Link>
             ) : (
-              <button type="button" className="hub-filter-chip hub-filter-chip--active" onClick={() => setIssueFilter('')}>
+              <button type="button" className="hub-filter-chip hub-filter-chip--active" onClick={() => { setIssueFilter(''); setFilterOpen(true) }}>
                 Show all issues
               </button>
             )}
