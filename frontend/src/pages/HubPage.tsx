@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { getHubReports, toggleHubUpvote } from '../api/client'
@@ -8,11 +8,23 @@ import { useAuth } from '../context/AuthContext'
 import type { HubReport } from '../types'
 
 type SortMode = 'popular' | 'recent'
+type IssueFilter = '' | 'pothole' | 'garbage' | 'streetlight' | 'water_leak' | 'sewage' | 'other'
+
+const ISSUE_FILTERS: { label: string; value: IssueFilter }[] = [
+  { label: 'All issues', value: '' },
+  { label: 'Garbage', value: 'garbage' },
+  { label: 'Potholes', value: 'pothole' },
+  { label: 'Drainage', value: 'sewage' },
+  { label: 'Streetlights', value: 'streetlight' },
+  { label: 'Water', value: 'water_leak' },
+  { label: 'Other', value: 'other' },
+]
 
 export function HubPage() {
   const { user, loading: authLoading, googleEnabled } = useAuth()
   const [reports, setReports] = useState<HubReport[]>([])
   const [sort, setSort] = useState<SortMode>('popular')
+  const [issueFilter, setIssueFilter] = useState<IssueFilter>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [votingId, setVotingId] = useState<string | null>(null)
@@ -27,7 +39,21 @@ export function HubPage() {
       .finally(() => setLoading(false))
   }, [authLoading, googleEnabled, user, sort])
 
-  const handleUpvote = async (reportId: string) => {
+  const filtered = useMemo(() => {
+    if (!issueFilter) return reports
+    return reports.filter((r) => r.issue_type === issueFilter)
+  }, [reports, issueFilter])
+
+  const stats = useMemo(() => {
+    const totalUpvotes = reports.reduce((sum, r) => sum + (r.upvote_count || 0), 0)
+    const yours = reports.filter((r) => r.upvoted_by_me).length
+    const top = reports[0]
+    return { count: reports.length, totalUpvotes, yours, top }
+  }, [reports])
+
+  const handleUpvote = async (reportId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (googleEnabled && !user) return
     setVotingId(reportId)
     try {
@@ -56,64 +82,132 @@ export function HubPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-civic-900">Community Hub</h2>
-          <p className="text-slate-600 mt-1">
-            See reports filed by citizens and upvote issues that need attention
+    <div className="hub-page">
+      <header className="hub-header">
+        <div className="hub-header-text">
+          <p className="hub-eyebrow">Community</p>
+          <h2 className="hub-title">Civic Reports Hub</h2>
+          <p className="hub-subtitle">
+            Discover issues filed by citizens, support what matters most, and help prioritize fixes in your city.
           </p>
         </div>
-        <div className="flex gap-2">
-          <SortButton active={sort === 'popular'} onClick={() => setSort('popular')}>
-            Most upvoted
-          </SortButton>
-          <SortButton active={sort === 'recent'} onClick={() => setSort('recent')}>
-            Recent
-          </SortButton>
-        </div>
+        <Link to="/new" className="dashboard-btn-primary hub-cta">
+          + Report Issue
+        </Link>
       </header>
 
-      <p className="text-sm text-slate-500">
-        Your pending email approvals are on{' '}
-        <Link to="/dashboard" className="text-civic-700 font-medium underline">
-          Dashboard
-        </Link>{' '}
-        (draft status).
-      </p>
-
-      {error && (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">{error}</p>
+      {!loading && reports.length > 0 && (
+        <section className="hub-stats" aria-label="Hub statistics">
+          <StatCard label="Public reports" value={String(stats.count)} />
+          <StatCard label="Community upvotes" value={String(stats.totalUpvotes)} />
+          <StatCard
+            label="You supported"
+            value={String(stats.yours)}
+            hint={stats.yours === 1 ? 'report' : 'reports'}
+          />
+        </section>
       )}
 
-      {loading ? (
-        <p className="text-slate-500 py-12 text-center">Loading community reports…</p>
-      ) : reports.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-stone-200 bg-stone-50/50">
-          <p className="text-4xl mb-3">🏘️</p>
-          <p className="font-medium text-civic-900">No public reports yet</p>
-          <p className="text-slate-500 text-sm mt-1 max-w-md mx-auto">
-            When citizens file and approve complaints, they appear here for the community to support.
-          </p>
-          <Link
-            to="/new"
-            className="inline-flex mt-5 px-5 py-2.5 bg-civic-600 text-white rounded-xl text-sm font-medium"
-          >
-            Report the first issue
+      <section className="hub-panel">
+        <div className="hub-toolbar">
+          <div className="hub-toolbar-group">
+            <span className="hub-toolbar-label">Sort</span>
+            <div className="hub-pill-group" role="tablist" aria-label="Sort reports">
+              <SortButton active={sort === 'popular'} onClick={() => setSort('popular')}>
+                Most upvoted
+              </SortButton>
+              <SortButton active={sort === 'recent'} onClick={() => setSort('recent')}>
+                Most recent
+              </SortButton>
+            </div>
+          </div>
+          <div className="hub-toolbar-group hub-toolbar-group--grow">
+            <span className="hub-toolbar-label">Filter</span>
+            <div className="hub-filter-scroll">
+              {ISSUE_FILTERS.map((f) => (
+                <button
+                  key={f.value || 'all'}
+                  type="button"
+                  onClick={() => setIssueFilter(f.value)}
+                  className={`hub-filter-chip ${issueFilter === f.value ? 'hub-filter-chip--active' : ''}`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="hub-hint">
+          Draft complaints awaiting your approval live on{' '}
+          <Link to="/dashboard" className="hub-hint-link">
+            Dashboard
           </Link>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {reports.map((report) => (
-            <HubCard
-              key={report.id}
-              report={report}
-              onUpvote={() => handleUpvote(report.id)}
-              voting={votingId === report.id}
-            />
-          ))}
-        </div>
-      )}
+          . Only filed reports appear here.
+        </p>
+
+        {error && <p className="hub-error">{error}</p>}
+
+        {loading ? (
+          <div className="hub-grid hub-grid--loading" aria-busy="true">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="hub-skeleton" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="hub-empty">
+            <p className="hub-empty-icon" aria-hidden>
+              🏘️
+            </p>
+            <p className="hub-empty-title">
+              {reports.length === 0 ? 'No public reports yet' : 'No reports match this filter'}
+            </p>
+            <p className="hub-empty-text">
+              {reports.length === 0
+                ? 'When citizens file and approve complaints, they appear here for the community to support.'
+                : 'Try a different issue type or clear the filter.'}
+            </p>
+            {reports.length === 0 ? (
+              <Link to="/new" className="dashboard-btn-primary hub-empty-cta">
+                Report the first issue
+              </Link>
+            ) : (
+              <button type="button" className="hub-filter-chip hub-filter-chip--active" onClick={() => setIssueFilter('')}>
+                Show all issues
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <p className="hub-results-count">
+              Showing <strong>{filtered.length}</strong> of {reports.length} reports
+            </p>
+            <div className="hub-grid">
+              {filtered.map((report, index) => (
+                <HubCard
+                  key={report.id}
+                  report={report}
+                  rank={sort === 'popular' && issueFilter === '' ? index + 1 : undefined}
+                  onUpvote={(e) => handleUpvote(report.id, e)}
+                  voting={votingId === report.id}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="hub-stat-card">
+      <p className="hub-stat-value">
+        {value}
+        {hint && <span className="hub-stat-hint"> {hint}</span>}
+      </p>
+      <p className="hub-stat-label">{label}</p>
     </div>
   )
 }
@@ -130,12 +224,10 @@ function SortButton({
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-        active
-          ? 'bg-civic-900 text-white border-civic-900'
-          : 'bg-white text-slate-600 border-stone-200 hover:border-civic-300'
-      }`}
+      className={`hub-sort-btn ${active ? 'hub-sort-btn--active' : ''}`}
     >
       {children}
     </button>
@@ -144,54 +236,89 @@ function SortButton({
 
 function HubCard({
   report,
+  rank,
   onUpvote,
   voting,
 }: {
   report: HubReport
-  onUpvote: () => void
+  rank?: number
+  onUpvote: (e: React.MouseEvent) => void
   voting: boolean
 }) {
+  const issueLabel = report.issue_type?.replace(/_/g, ' ') || 'civic issue'
+  const when = formatWhen(report.submitted_at || report.created_at)
+
   return (
-    <article className="bg-white rounded-2xl border border-stone-200/80 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-      <Link to={`/petitions/${report.id}`} className="block">
-        <img
-          src={report.photo_url}
-          alt=""
-          className="w-full h-40 object-cover"
-          loading="lazy"
-        />
-      </Link>
-      <div className="p-4 flex flex-col flex-1 gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-civic-900 capitalize truncate">
-              {report.issue_type?.replace('_', ' ') || 'Civic issue'}
-            </p>
-            <p className="text-xs text-slate-500 truncate mt-0.5">{report.area_label}</p>
+    <article className="hub-card">
+      <Link to={`/petitions/${report.id}`} className="hub-card-link">
+        <div className="hub-card-media">
+          <img src={report.photo_url} alt="" className="hub-card-image" loading="lazy" />
+          <div className="hub-card-media-overlay">
+            {rank != null && rank <= 3 && (
+              <span className={`hub-rank hub-rank--${rank}`}>#{rank}</span>
+            )}
+            <span className="hub-issue-chip">{issueLabel}</span>
           </div>
-          <StatusBadge status={report.status} />
         </div>
-        {report.description && (
-          <p className="text-sm text-slate-600 line-clamp-2">{report.description}</p>
-        )}
-        <div className="flex items-center justify-between mt-auto pt-1">
-          <span className="text-xs text-slate-400">by {report.reporter_display}</span>
-          <button
-            type="button"
-            onClick={onUpvote}
-            disabled={voting}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-              report.upvoted_by_me
-                ? 'bg-civic-50 border-civic-300 text-civic-800'
-                : 'bg-stone-50 border-stone-200 text-slate-700 hover:border-civic-300 hover:text-civic-800'
-            }`}
-            aria-pressed={report.upvoted_by_me}
-          >
-            <span aria-hidden>{report.upvoted_by_me ? '▲' : '△'}</span>
-            {report.upvote_count}
-          </button>
+
+        <div className="hub-card-body">
+          <div className="hub-card-meta">
+            <StatusBadge status={report.status} />
+            {report.severity_level && (
+              <span className="hub-severity">{report.severity_level}</span>
+            )}
+          </div>
+
+          <h3 className="hub-card-title">{report.area_label}</h3>
+
+          {report.description && <p className="hub-card-desc">{report.description}</p>}
+
+          <div className="hub-card-footer">
+            <div className="hub-card-byline">
+              <span>{report.reporter_display}</span>
+              {when && <span className="hub-card-dot">·</span>}
+              {when && <time dateTime={report.submitted_at || report.created_at}>{when}</time>}
+            </div>
+          </div>
         </div>
-      </div>
+      </Link>
+
+      <button
+        type="button"
+        onClick={onUpvote}
+        disabled={voting}
+        className={`hub-upvote ${report.upvoted_by_me ? 'hub-upvote--active' : ''}`}
+        aria-pressed={report.upvoted_by_me}
+        aria-label={`Upvote, ${report.upvote_count} votes`}
+      >
+        <UpvoteIcon filled={report.upvoted_by_me} />
+        <span className="hub-upvote-count">{report.upvote_count}</span>
+      </button>
     </article>
   )
+}
+
+function UpvoteIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} aria-hidden>
+      <path
+        d="M12 4l2.2 4.5 5 .7-3.6 3.5.9 5.2L12 15.8 7.5 18l.9-5.2L4.8 9.2l5-.7L12 4z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function formatWhen(iso?: string): string {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const diff = Date.now() - date.getTime()
+  const days = Math.floor(diff / 86400000)
+  if (days < 1) return 'Today'
+  if (days === 1) return 'Yesterday'
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }

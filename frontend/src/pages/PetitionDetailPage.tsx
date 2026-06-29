@@ -2,21 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { getPetition, uploadFollowUp, uploadPhoto } from '../api/client'
+import { ComplaintTimeline } from '../components/ComplaintTimeline'
 import { StatusBadge } from '../components/StatusBadge'
 import type { ActivityEvent, Petition } from '../types'
-
-const EVENT_ICONS: Record<string, string> = {
-  created: '📝',
-  classified: '🏷️',
-  drafted: '✉️',
-  approval_pending: '⏳',
-  email_sent: '📤',
-  escalation_pending: '⚠️',
-  escalation_sent: '🚨',
-  follow_up_uploaded: '📷',
-  resolution_checked: '✅',
-  status_changed: '🔄',
-}
 
 export function PetitionDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -146,21 +134,8 @@ export function PetitionDetailPage() {
       </div>
 
       <div className="bg-white rounded-2xl border p-4">
-        <h3 className="font-semibold mb-4">Timeline</h3>
-        <ol className="relative border-l border-slate-200 ml-3 space-y-6">
-          {activity.map((event) => (
-            <li key={event.id} className="ml-6">
-              <span className="absolute -left-3 flex items-center justify-center w-6 h-6 bg-white border rounded-full text-sm">
-                {EVENT_ICONS[event.event_type] || '•'}
-              </span>
-              <p className="text-sm font-medium capitalize">{event.event_type.replace(/_/g, ' ')}</p>
-              <p className="text-sm text-slate-600">{event.message}</p>
-              {event.timestamp && (
-                <p className="text-xs text-slate-400 mt-0.5">{new Date(event.timestamp).toLocaleString()}</p>
-              )}
-            </li>
-          ))}
-        </ol>
+        <h3 className="font-semibold mb-3">Timeline</h3>
+        <ComplaintTimeline events={activity} />
       </div>
     </div>
   )
