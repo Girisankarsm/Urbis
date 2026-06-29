@@ -49,13 +49,13 @@ export function DashboardFilterTabs({
   }, [updatePill])
 
   return (
-    <div className="dashboard-tabs-wrap relative mb-[clamp(1.25rem,3vw,1.75rem)]">
+    <div className="dashboard-tabs-wrap relative mb-[clamp(1.25rem,3vw,1.75rem)] max-w-full overflow-hidden">
       <div className="dashboard-tabs-fade dashboard-tabs-fade-left pointer-events-none" aria-hidden />
       <div className="dashboard-tabs-fade dashboard-tabs-fade-right pointer-events-none" aria-hidden />
 
       <div
         ref={containerRef}
-        className="dashboard-tabs-scroll relative flex gap-2 sm:gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none"
+        className="dashboard-tabs-scroll relative flex gap-2 sm:gap-2.5 overflow-x-auto pb-1 scrollbar-none max-w-full"
         role="tablist"
         aria-label="Filter petitions by status"
       >

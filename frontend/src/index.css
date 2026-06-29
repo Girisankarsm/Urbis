@@ -2,8 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
+  overflow-x: hidden;
+  max-width: 100%;
+  overscroll-behavior-x: none;
+}
+
+#root {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+.app-shell {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.app-header {
+  max-width: 100vw;
+}
+
+.app-footer {
+  max-width: 100vw;
 }
 
 .leaflet-container {
@@ -179,6 +205,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .dashboard-page-header {
@@ -227,6 +256,7 @@ body {
   color: white;
   white-space: nowrap;
   flex-shrink: 0;
+  width: 100%;
 }
 
 @media (min-width: 640px) {
@@ -241,6 +271,8 @@ body {
   background: white;
   box-shadow: 0 4px 28px -10px rgba(12, 74, 110, 0.1);
   padding: clamp(1rem, 3vw, 1.75rem);
+  overflow: hidden;
+  max-width: 100%;
 }
 
 @media (min-width: 640px) {
