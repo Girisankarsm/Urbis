@@ -23,4 +23,13 @@ describe('api client', () => {
     const { loginUrl } = await import('./client')
     expect(loginUrl()).toBe('/api/auth/google')
   })
+
+  it('ignores VITE_API_URL on deployed production host (mobile Safari cookies)', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://urbis-ce0h.onrender.com')
+    vi.stubEnv('PROD', true)
+    vi.stubGlobal('window', { location: { hostname: 'urbis-lemma.vercel.app' } })
+    vi.resetModules()
+    const { loginUrl } = await import('./client')
+    expect(loginUrl()).toBe('/api/auth/google')
+  })
 })

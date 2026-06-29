@@ -8,21 +8,35 @@ export interface AuthUser {
   can_send_gmail: boolean
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
-/** Same-origin `/api` in production (Vercel proxy); absolute URL only for local cross-port dev. */
-const API = API_BASE ? `${API_BASE}/api` : '/api'
+function resolveApiBase(): string {
+  // On the deployed Vercel site, always use same-origin /api (proxied to Render).
+  // Mobile Safari blocks third-party cookies when VITE_API_URL points at Render directly.
+  if (import.meta.env.PROD && typeof window !== 'undefined') {
+    const host = window.location.hostname
+    if (host !== 'localhost' && host !== '127.0.0.1') {
+      return ''
+    }
+  }
+  return (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+}
+
+function apiPath(): string {
+  const base = resolveApiBase()
+  return base ? `${base}/api` : '/api'
+}
 
 export function apiBaseUrl(): string {
-  return API_BASE
+  return resolveApiBase()
 }
 
 export function loginUrl(reconnect = false): string {
   const path = reconnect ? '/api/auth/google?reconnect=1' : '/api/auth/google'
-  return API_BASE ? `${API_BASE}${path}` : path
+  const base = resolveApiBase()
+  return base ? `${base}${path}` : path
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(`${apiPath()}${path}`, {
     credentials: 'include',
     ...options,
   })
@@ -55,7 +69,7 @@ export async function uploadPhoto(file: File, kind: 'petitions' | 'follow-up' = 
   const form = new FormData()
   form.append('file', file)
   const query = kind === 'follow-up' ? '?kind=follow-up' : ''
-  const res = await fetch(`${API}/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
+  const res = await fetch(`${apiPath()}/uploads${query}`, { method: 'POST', body: form, credentials: 'include' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     const detail = err.detail
