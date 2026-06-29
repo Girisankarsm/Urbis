@@ -41,11 +41,13 @@ class AuthCompleteRequest(BaseModel):
 
 
 @router.get("/status")
-async def auth_status():
+async def auth_status(request: Request):
     payload = {
         "google_auth_enabled": _auth_enabled(),
         "login_url": "/api/auth/google" if _auth_enabled() else None,
     }
+    if _auth_enabled():
+        payload["oauth_redirect_uri"] = oauth_redirect_uri(request)
     if settings.is_production and _auth_enabled():
         payload["oauth_production_notes"] = (
             "Publish the OAuth consent screen and add your production redirect URI "

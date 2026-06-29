@@ -105,13 +105,29 @@ curl https://<your-api>.onrender.com/api/health
 
 ## 4. Google OAuth (production)
 
-In [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+In [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → your **Web client** (`7891846324-...`):
 
-1. OAuth client → **Authorized JavaScript origins**: `https://<vercel-domain>`
-2. **Authorized redirect URIs** (add **both** during migration, then you can drop Render):
-   - `https://<vercel-domain>/api/auth/google/callback` **(required — login uses Vercel proxy)**
-   - `https://<render-api>/api/auth/google/callback` (optional legacy)
-3. Publish OAuth consent screen (Testing → Production when ready).
+**Authorized JavaScript origins** — add all that apply:
+
+```
+https://urbis-lemma.vercel.app
+http://localhost:5173
+```
+
+**Authorized redirect URIs** — add **every** callback URL the app may use (must match **exactly**, no trailing slash):
+
+```
+https://urbis-lemma.vercel.app/api/auth/google/callback
+http://localhost:8000/api/auth/google/callback
+```
+
+`Error 400: redirect_uri_mismatch` means the URI Google received is **not** in this list. Common causes:
+
+- Testing on **localhost** without adding the localhost callback above
+- Typo or extra slash in the Console entry
+- Editing a different OAuth client than the one in Render env
+
+Click **Save**, wait 1–2 minutes, then retry in a fresh tab.
 
 Set on Render:
 

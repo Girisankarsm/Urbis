@@ -14,6 +14,8 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     'Google sign-in could not be completed. Add this site’s /api/auth/google/callback URL to Google Cloud Console → OAuth redirect URIs, then try again.',
   unknown:
     'Google sign-in could not be completed. Add this site’s /api/auth/google/callback URL to Google Cloud Console → OAuth redirect URIs, then try again.',
+  redirect_uri_mismatch:
+    'Google blocked sign-in: redirect URI mismatch. In Google Cloud Console → Credentials, add the exact callback URL for this site (see the note below if you are on localhost).',
   session_failed:
     'Sign-in completed but your session was not saved. On mobile, use the site in Safari/Chrome (not an in-app browser). Try again, or clear site data and sign in once more.',
 }
@@ -45,6 +47,7 @@ export function WelcomePage() {
   const navigate = useNavigate()
   const { user, loading, googleEnabled, authError: contextAuthError, clearAuthError, login } = useAuth()
   const [authError, setAuthError] = useState('')
+  const [devOAuthHint, setDevOAuthHint] = useState('')
   const [contentReady, setContentReady] = useState(false)
   const [loaderPhase, setLoaderPhase] = useState<'loading' | 'exiting' | 'done'>('loading')
 
@@ -53,8 +56,14 @@ export function WelcomePage() {
   const ctaRef = useInView<HTMLElement>(0.1)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const code = params.get('auth_error')
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      setDevOAuthHint(
+        'Local dev: in Google Cloud Console add redirect URI http://localhost:8000/api/auth/google/callback and JavaScript origin http://localhost:5173',
+      )
+    }
+  }, [])
+
+  useEffect(() => {
     if (code) {
       setAuthError(AUTH_ERROR_MESSAGES[code] ?? 'Sign-in failed. Please try again.')
     }
@@ -169,6 +178,11 @@ export function WelcomePage() {
               className={`bg-white rounded-[1.75rem] sm:rounded-[2rem] border border-stone-200/80 shadow-[0_4px_24px_-8px_rgba(12,74,110,0.1)] p-6 sm:p-8 lg:p-10 text-center welcome-reveal ${ctaRef.inView ? 'welcome-reveal-visible' : ''}`}
               style={{ transitionDelay: '160ms' }}
             >
+              {devOAuthHint && (
+                <div className="mb-6 text-sm text-sky-900 bg-sky-50 border border-sky-200/80 rounded-[1rem] px-4 py-3 text-left">
+                  {devOAuthHint}
+                </div>
+              )}
               {authError && (
                 <div className="mb-6 text-sm text-amber-900 bg-amber-50 border border-amber-200/80 rounded-[1rem] px-4 py-3 text-left">
                   {authError}
