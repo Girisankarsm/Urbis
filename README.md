@@ -1,17 +1,22 @@
 <p align="center">
-  <strong style="font-size: 1.5rem;">Urbis</strong><br />
-  <em>Citizen civic-issue reporting — photo, route, approve, send from your Gmail.</em>
+  <img src="./docs/images/readme-banner.svg" alt="Urbis — citizen civic-issue reporting" width="100%" />
 </p>
 
 <p align="center">
-  <a href="https://gappy.ai">Gappy AI Hackathon</a> ·
-  <a href="https://lemma.work">Lemma SDK</a> ·
-  <a href="https://github.com/Girisankarsm/Urbis">GitHub</a>
+  <a href="https://gappy.ai"><img src="https://img.shields.io/badge/Hackathon-Gappy%20AI-0c4a6e?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5bC01LjQ1IDQuNzNMMTggMjFsLTYtMy41TDYgMjFsMy40NS04LjAzTDIgOWw2LjkxLS43NFoiLz48L3N2Zz4=" /></a>
+  <a href="https://lemma.work"><img src="https://img.shields.io/badge/AI-Lemma%20SDK-0284c7?style=flat-square" /></a>
+  <a href="https://urbis-lemma.vercel.app"><img src="https://img.shields.io/badge/Live-urbis--lemma.vercel.app-22c55e?style=flat-square" /></a>
+  <img src="https://img.shields.io/badge/License-MIT-64748b?style=flat-square" />
+  <img src="https://img.shields.io/badge/Tests-Pytest%20%2B%20Vitest-8b5cf6?style=flat-square" />
 </p>
 
 <p align="center">
-  <a href="https://urbis-lemma.vercel.app">Live app</a> ·
-  <a href="https://urbis-ce0h.onrender.com/api/health/live">API health</a> ·
+  <strong>See a civic problem. Route it to the right authority. Send it from your own Gmail.</strong>
+</p>
+
+<p align="center">
+  <a href="https://urbis-lemma.vercel.app"><b>Launch app</b></a> ·
+  <a href="https://urbis-ce0h.onrender.com/api/health/live">API status</a> ·
   <a href="./docs/ARCHITECTURE.md">Architecture</a> ·
   <a href="./docs/API.md">API</a> ·
   <a href="./docs/DEPLOY.md">Deploy</a>
@@ -19,292 +24,297 @@
 
 ---
 
-## Table of contents
+## Overview
 
-- [Live demo](#live-demo)
-- [The problem](#the-problem)
-- [What Urbis does](#what-urbis-does)
-- [How it works](#how-it-works)
-- [Features](#features)
-- [Lemma SDK integration](#lemma-sdk-integration)
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Quick start](#quick-start)
-- [Environment variables](#environment-variables)
-- [Tests & CI](#tests--ci)
-- [Production deployment](#production-deployment)
-- [Project structure](#project-structure)
-- [Hackathon demo script](#hackathon-demo-script)
-- [Documentation](#documentation)
-- [License](#license)
+**Urbis** helps citizens report potholes, garbage, broken streetlights, and other civic issues in under a minute. The app uses the **Lemma SDK** to classify the problem, find the right municipal contact, and draft a formal complaint — but **nothing is emailed until the citizen reviews and approves it**.
+
+<p align="center">
+  <img src="./docs/images/readme-flow.svg" alt="Report → Lemma AI → Approve → Gmail → Track" width="920" />
+</p>
+
+| | |
+|:--|:--|
+| **Problem** | Citizens do not know which department to contact, and formal complaints are too much friction. |
+| **Solution** | Photo + map pin → Lemma routes & drafts → human approval → Gmail send → dashboard tracking. |
+| **Principle** | Human-in-the-loop by design. Your email, your approval, your audit trail. |
 
 ---
 
 ## Live demo
 
-| | URL |
-|---|-----|
-| **App (Vercel)** | https://urbis-lemma.vercel.app |
-| **API (Render)** | https://urbis-ce0h.onrender.com |
-| **Health check** | https://urbis-ce0h.onrender.com/api/health/live |
-| **Lemma status** | https://urbis-ce0h.onrender.com/api/health/lemma |
+| Resource | Link |
+|----------|------|
+| Web app | [urbis-lemma.vercel.app](https://urbis-lemma.vercel.app) |
+| REST API | [urbis-ce0h.onrender.com](https://urbis-ce0h.onrender.com) |
+| Health | [/api/health/live](https://urbis-ce0h.onrender.com/api/health/live) |
+| Lemma status | [/api/health/lemma](https://urbis-ce0h.onrender.com/api/health/lemma) |
 
-Sign in with Google to report issues, approve AI-drafted emails, and track petitions on the dashboard.
-
----
-
-## The problem
-
-Citizens notice potholes, garbage, broken streetlights, and drainage issues every day — but most never get reported. The barrier is friction: wrong department, formal email writing, and no follow-up.
-
-**Urbis** removes that friction: **photo + location → AI classifies and routes → you approve → email sends from your Gmail → status tracked end-to-end.**
+> Sign in with Google → report an issue → approve the draft → track it on your dashboard.
 
 ---
 
-## What Urbis does
+## Table of contents
 
-| Audience | Value |
-|----------|--------|
-| **Citizens** | Report in under a minute. Nothing is sent without your approval. |
-| **Municipalities** | Structured, location-tagged complaints routed to the correct desk. |
-| **Community** | Hub to discover and upvote issues that need urgent attention. |
-| **Hackathon judges** | Lemma-first agentic pipeline with verified-registry fallback and full audit trail. |
+<details open>
+<summary><b>Navigate</b></summary>
+
+- [Key features](#key-features)
+- [How it works](#how-it-works)
+- [Lemma integration](#lemma-integration)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Testing & deployment](#testing--deployment)
+- [Project layout](#project-layout)
+- [Demo script](#demo-script-judges)
+- [Documentation](#documentation)
+
+</details>
+
+---
+
+## Key features
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### For citizens
+- Photo + map reporting with geolocation
+- AI issue classification (Lemma + keywords)
+- Edit To, subject, and body before send
+- Complaints sent from **your Gmail**
+- Dashboard with status filters & timeline
+- Follow-up photos & resolution checks
+
+</td>
+<td width="50%" valign="top">
+
+### For municipalities & community
+- Structured, location-tagged complaints
+- Routing to verified `.gov.in` contacts
+- Community Hub with public reports & upvotes
+- Duplicate detection near existing reports
+- Auto-escalation for stale cases
+- Full audit: `processing_path` + `lemma_invocations`
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## How it works
 
-```
-Report photo + pin  →  Lemma classifies & routes  →  Draft complaint email
-        →  You review & approve  →  Sent from your Gmail  →  Track on Dashboard
-        →  Community upvotes on Hub  →  Follow-up photo checks resolution
+```mermaid
+flowchart LR
+  A[📷 Report photo + pin] --> B[🤖 Lemma classifies & routes]
+  B --> C[✉️ Draft complaint email]
+  C --> D[✅ Citizen approves]
+  D --> E[📤 Sent from Gmail]
+  E --> F[📊 Dashboard + Hub]
+  F --> G[🔄 Follow-up & escalate]
 ```
 
-| Step | Route | What happens |
-|:----:|-------|--------------|
-| 1 | `/` | Welcome → Google sign-in |
+| Step | Screen | What happens |
+|:----:|--------|--------------|
+| 1 | `/` | Welcome page → Google sign-in |
 | 2 | `/new` | Upload photo, pin location, describe issue |
-| 3 | Backend | Geocode → **Lemma pod** (workflow + agents) → draft email |
-| 4 | `/approvals/:id` | Edit recipient, subject, body → approve |
-| 5 | Gmail | Complaint sent from the citizen's account |
-| 6 | `/dashboard` | Track status, approve drafts, upload follow-up |
-| 7 | `/hub` | Browse public reports, upvote issues that matter |
+| 3 | API | Geocode → Lemma pod → draft email to authority |
+| 4 | `/approvals/:id` | Review recipient, subject, body → approve |
+| 5 | Gmail | Complaint delivered from citizen account |
+| 6 | `/dashboard` | Track status, upload follow-up photos |
+| 7 | `/hub` | Browse community reports, upvote urgent issues |
 
 ---
 
-## Features
+## Lemma integration
 
-### Core
+Urbis is built on the **[Lemma SDK](https://github.com/lemma-work/lemma-platform)**. When the `civic-lens` pod is reachable, **Lemma runs first** on every report. Local verified contacts are fallback only.
 
-- Photo + map reporting with geolocation and duplicate warnings
-- Lemma-first routing to the right municipal department
-- Human-in-the-loop — edit To, subject, and body before send
-- Gmail delivery from the citizen's own account
-- Dashboard with status filters, timeline, and follow-up photos
-- Community Hub with public reports and upvotes
-- Auto-escalation after configurable days without resolution
+**Pod location:** `pod/civic-lens/`
 
-### AI & infrastructure
+| Resource type | Names |
+|---------------|-------|
+| Agents | `issue-classifier` · `complaint-drafter` · `resolution-checker` |
+| Functions | `create_petition` · `send_complaint_email` · `escalate_petition` · `update_resolution_status` |
+| Workflows | `petition-pipeline` · `escalation-pipeline` |
+| Tables | `petitions` · `departments` · `activity_log` |
+| Schedule | `daily-resolution-check` |
 
-- Optional OpenAI Vision classification
-- Severity scoring with nearby infrastructure (schools, hospitals, transit)
-- Resolution verification (before/after photos)
-- Analytics API — trends, departments, resolution times
-- Verified `.gov.in` authority registry with source links
-
----
-
-## Lemma SDK integration
-
-Urbis uses the **[Lemma SDK](https://github.com/lemma-work/lemma-platform)** as its primary agentic layer. When the pod is reachable, **Lemma runs first** on every report. Local verified contacts are fallback only.
-
-### civic-lens pod (`pod/civic-lens/`)
-
-| Type | Resources |
-|------|-----------|
-| **Agents** | `issue-classifier` · `complaint-drafter` · `resolution-checker` |
-| **Functions** | `create_petition` · `send_complaint_email` · `escalate_petition` · `update_resolution_status` |
-| **Workflows** | `petition-pipeline` · `escalation-pipeline` |
-| **Tables** | `petitions` · `departments` · `activity_log` |
-| **Schedule** | `daily-resolution-check` → escalation workflow |
-
-### When each fires
-
-| User action | Lemma resources |
-|-------------|-----------------|
-| Submit report | `petition-pipeline` → `create_petition` → `issue-classifier` → `complaint-drafter` |
-| Approve & send | `send_complaint_email` (+ Gmail from citizen) |
+| User action | Lemma path |
+|-------------|------------|
+| Submit report | `petition-pipeline` → `issue-classifier` → `complaint-drafter` |
+| Approve & send | `send_complaint_email` + Gmail |
 | Upload follow-up | `resolution-checker` → `update_resolution_status` |
-| Escalate stale case | `escalation-pipeline` → `escalate_petition` |
-
-Each petition stores `processing_path` (`lemma` | `fallback`) and `lemma_invocations[]` for audit.
+| Stale complaint | `escalation-pipeline` → `escalate_petition` |
 
 ---
 
 ## Architecture
 
 <p align="center">
-  <img src="./docs/images/system-architecture.png" alt="Urbis system architecture" width="880" />
+  <img src="./docs/images/system-architecture.png" alt="System architecture" width="860" />
 </p>
 
 <p align="center">
-  <img src="./docs/images/complaint-pipeline.png" alt="Complaint pipeline" width="880" />
+  <img src="./docs/images/complaint-pipeline.png" alt="Complaint pipeline" width="860" />
 </p>
 
 <p align="center">
-  <sub>React → FastAPI → MongoDB · Lemma pod · Gmail · Cloudinary · Nominatim</sub>
+  <sub>React · FastAPI · MongoDB · Lemma · Gmail · Cloudinary · Nominatim</sub>
 </p>
 
-Full technical write-up: **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
+Deep dive → **[docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)**
 
 ---
 
 ## Tech stack
 
-| Layer | Technology | Role |
-|-------|------------|------|
-| Frontend | React 18, Vite, Tailwind | Report, approve, hub, dashboard |
-| API | FastAPI, Motor | OAuth, petition pipeline, hub |
-| Database | MongoDB Atlas | Petitions, users, activity, upvotes |
-| AI | Lemma SDK (+ optional OpenAI Vision) | Classify, draft, verify resolution |
-| Auth | Google OAuth | Sign-in + Gmail send |
-| Email | Gmail API (primary), Brevo SMTP (fallback) | Citizen-owned delivery |
-| Images | Cloudinary | Persistent photo URLs |
-| Hosting | Vercel (frontend) + Render (API) | Production |
+| Layer | Technology |
+|-------|------------|
+| Frontend | React 18 · Vite · Tailwind CSS |
+| Backend | FastAPI · Motor (async MongoDB) |
+| Database | MongoDB Atlas |
+| AI | Lemma SDK (`civic-lens` pod) |
+| Auth | Google OAuth + session cookies |
+| Email | Gmail API · Brevo SMTP fallback |
+| Media | Cloudinary |
+| Hosting | Vercel (app) · Render (API) |
 
 ---
 
 ## Quick start
 
-**Requirements:** Docker (or local MongoDB), Python 3.11+, Node 18+
+**Prerequisites:** Python 3.11+ · Node 18+ · MongoDB (local or Docker)
 
 ```bash
 git clone https://github.com/Girisankarsm/Urbis.git
 cd Urbis
-./scripts/setup.sh          # installs deps, copies .env
-./scripts/run-local.sh      # API + frontend together
+./scripts/setup.sh
+./scripts/run-local.sh
 ```
 
-| Service | URL |
-|---------|-----|
+| Service | Local URL |
+|---------|-----------|
 | App | http://localhost:5173 |
-| API health | http://localhost:8000/api/health |
-| Lemma health | http://localhost:8000/api/health/lemma |
+| API | http://localhost:8000/api/health |
+| Lemma | http://localhost:8000/api/health/lemma |
 
-### Lemma setup (full demo)
+<details>
+<summary><b>Lemma pod setup (required for full demo)</b></summary>
 
 ```bash
 cd backend && .venv/bin/lemma auth login
 cd .. && ./scripts/sync-lemma-env.sh
-# Set LEMMA_POD_ID and LEMMA_ORG_ID from lemma.work dashboard
+# Set LEMMA_POD_ID + LEMMA_ORG_ID from lemma.work dashboard
 ./scripts/restart-api.sh
 ```
 
-Confirm `/api/health/lemma` returns `live: true` before demoing.
+Confirm `/api/health/lemma` returns `"live": true`.
 
-### Without Docker
+</details>
+
+<details>
+<summary><b>Run without Docker</b></summary>
 
 ```bash
-# Terminal 1 — API
-cd backend && MONGODB_URL=mongodb://localhost:27017 .venv/bin/uvicorn app.main:app --reload --port 8000
+# Terminal 1
+cd backend && MONGODB_URL=mongodb://localhost:27017 \
+  .venv/bin/uvicorn app.main:app --reload --port 8000
 
-# Terminal 2 — frontend
+# Terminal 2
 cd frontend && npm run dev
 ```
 
+</details>
+
 ---
 
-## Environment variables
+## Configuration
 
-Copy `.env.example` → `.env`.
+Copy `.env.example` → `.env` for local development.
 
 | Variable | Purpose |
 |----------|---------|
-| `MONGODB_URL` | Local MongoDB or Atlas connection string |
-| `LEMMA_REFRESH_TOKEN`, `LEMMA_POD_ID`, `LEMMA_ORG_ID` | Lemma civic-lens pod |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Sign-in + Gmail send |
-| `CLOUDINARY_*` | Image hosting (required on Render) |
-| `SMTP_*` | Brevo fallback if Gmail unavailable |
-| `OPENAI_API_KEY` | Optional vision + resolution |
+| `MONGODB_URL` | MongoDB connection string |
+| `LEMMA_REFRESH_TOKEN` · `LEMMA_POD_ID` · `LEMMA_ORG_ID` | Lemma civic-lens pod |
+| `GOOGLE_CLIENT_ID` · `GOOGLE_CLIENT_SECRET` | Sign-in + Gmail send |
+| `CLOUDINARY_*` | Image hosting (required in production) |
+| `SMTP_*` | Email fallback when Gmail unavailable |
 | `DEMO_EMAIL_REDIRECT` | Set `false` to email real authorities |
 
-Templates: `.env.example` (local) · `.env.production.example` (Render/Vercel)
+Templates: `.env.example` · `.env.production.example`
 
 ---
 
-## Tests & CI
+## Testing & deployment
 
 ```bash
-./scripts/test.sh              # backend + frontend
-cd backend && pytest -q
-cd frontend && npm test
+./scripts/test.sh                 # backend + frontend
+cd backend && pytest -q           # API tests
+cd frontend && npm test           # client tests
+./scripts/check-deploy-ready.sh   # production pre-flight
 ```
 
-GitHub Actions runs on every push to `main`.
-
----
-
-## Production deployment
-
-See **[docs/DEPLOY.md](docs/DEPLOY.md)** for Render + Vercel + MongoDB Atlas + Google OAuth + Cloudinary.
-
-```bash
-./scripts/check-deploy-ready.sh
-```
-
-| Component | Platform |
-|-----------|----------|
-| API | Render (`render.yaml`) |
-| Frontend | Vercel (`frontend/vercel.json` proxies `/api` to Render) |
+| Environment | Platform |
+|-------------|----------|
+| API | [Render](https://render.com) — `render.yaml` |
+| Frontend | [Vercel](https://vercel.com) — proxies `/api` to Render |
 | Database | MongoDB Atlas |
-| Lemma pod | lemma.work |
+| Lemma | [lemma.work](https://lemma.work) |
+
+Full guide → **[docs/DEPLOY.md](./docs/DEPLOY.md)**
 
 ---
 
-## Project structure
+## Project layout
 
 ```
 Urbis/
-├── backend/                 FastAPI API, services, tests
-├── frontend/                React + Vite SPA
-├── pod/civic-lens/          Lemma agents, functions, workflows
-├── docs/                    Architecture, API reference, deploy guide
-├── scripts/                 setup, run-local, sync-lemma-env, deploy checks
-├── docker-compose.yml       Local MongoDB + API
-├── render.yaml              Render production blueprint
-├── .env.example             Local environment template
-└── .env.production.example  Production environment template
+├── backend/              # FastAPI API, services, tests
+├── frontend/             # React + Vite SPA
+├── pod/civic-lens/       # Lemma agents, workflows, functions
+├── docs/                 # Architecture, API, deploy, images
+├── scripts/              # setup, run-local, lemma sync, deploy checks
+├── docker-compose.yml
+├── render.yaml
+└── .env.example
 ```
 
 ---
 
-## Hackathon demo script
+## Demo script (judges)
 
 **~90 seconds**
 
-1. Open https://urbis-lemma.vercel.app → sign in with Google.
-2. Check https://urbis-ce0h.onrender.com/api/health/lemma → `live: true`.
-3. **Report** a civic issue (photo + pin in Chennai/Bengaluru).
-4. **Dashboard** → open draft → **Review & Approve** → verify authority email.
-5. **Send** from Gmail → timeline shows `Sent`.
-6. **Hub** → upvote the public report.
-7. Show petition record: `processing_path: lemma`.
-
-**Submission:** [GitHub](https://github.com/Girisankarsm/Urbis) · Lemma pod: `pod/civic-lens/`
+1. Open [urbis-lemma.vercel.app](https://urbis-lemma.vercel.app) → sign in with Google
+2. Verify [Lemma health](https://urbis-ce0h.onrender.com/api/health/lemma) → `live: true`
+3. **Report** a civic issue (photo + pin in Chennai or Bengaluru)
+4. **Dashboard** → open draft → **Review & Approve**
+5. **Send** from Gmail → timeline shows `Sent`
+6. **Hub** → upvote the public report
+7. Show `processing_path: lemma` on the petition record
 
 ---
 
 ## Documentation
 
-| Doc | Description |
-|-----|-------------|
-| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, pipelines, modules |
+| Document | Contents |
+|----------|----------|
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design & pipelines |
 | [docs/API.md](./docs/API.md) | REST API reference |
-| [docs/DEPLOY.md](./docs/DEPLOY.md) | Production hosting guide |
+| [docs/DEPLOY.md](./docs/DEPLOY.md) | Production hosting |
 | [pod/civic-lens/README.md](./pod/civic-lens/README.md) | Lemma pod resources |
 
 ---
 
-## License
+<p align="center">
+  <img src="./frontend/public/icons/icon.svg" alt="Urbis icon" width="72" />
+</p>
 
-MIT — built for the [Gappy AI Hackathon](https://gappy.ai).
+<p align="center">
+  <sub>MIT License · Built for the <a href="https://gappy.ai">Gappy AI Hackathon</a></sub><br />
+  <sub><a href="https://github.com/Girisankarsm/Urbis">github.com/Girisankarsm/Urbis</a></sub>
+</p>

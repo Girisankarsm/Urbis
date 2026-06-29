@@ -13,7 +13,7 @@ React SPA (Vite)  →  FastAPI REST API  →  MongoDB (primary store)
    (images)           (agents)           (email send)
         │                  │
         ▼                  ▼
-   Image optimize     OpenAI Vision (optional)
+   Image optimize     Lemma agents (classify / verify)
    + validation       Overpass POI lookup
 ```
 
@@ -22,7 +22,7 @@ React SPA (Vite)  →  FastAPI REST API  →  MongoDB (primary store)
 1. **Human-in-the-loop** — no email is sent without citizen approval
 2. **Extension over replacement** — new AI features are optional modules; existing flows unchanged
 3. **MongoDB as source of truth** — petitions, users, activity; Lemma pod tables are secondary
-4. **Graceful fallbacks** — OpenAI → Lemma → keyword/heuristic at every AI layer
+4. **Graceful fallbacks** — Lemma → keyword/heuristic at every AI layer
 
 ## Backend modules
 
@@ -100,7 +100,7 @@ POST /api/petitions
 ```
 POST /api/petitions/:id/follow-up
   1. Store follow-up photo URL
-  2. verify_resolution() — OpenAI vision → Lemma resolution-checker → heuristic
+  2. verify_resolution() — Lemma resolution-checker → heuristic
   3. Update status (resolved / under_review)
   4. Log resolution_checked event
 ```
@@ -156,9 +156,7 @@ FastAPI invokes Lemma agents via `lemma-sdk`; MongoDB remains the primary data s
 
 | Variable | Purpose |
 |----------|---------|
-| `OPENAI_API_KEY` | Enables OpenAI vision for classification + resolution |
 | `VISION_ENABLED` | Toggle vision classification (default: true) |
-| `VISION_MODEL` | OpenAI model (default: `gpt-4o-mini`) |
 | `DUPLICATE_RADIUS_M` | Duplicate search radius in meters |
 | `SEVERITY_POI_RADIUS_M` | POI lookup radius for severity |
 | `RATE_LIMIT_ENABLED` | Toggle API rate limiting |

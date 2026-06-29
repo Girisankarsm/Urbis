@@ -81,13 +81,13 @@ Classify a civic issue from an uploaded photo URL.
     "issue_type": "pothole",
     "confidence": 0.87,
     "reasoning": "Visible road crater with broken asphalt",
-    "source": "openai_vision"
+    "source": "lemma_vision"
   },
   "issue_types": ["pothole", "garbage", "streetlight", "..."]
 }
 ```
 
-**Fallback order:** OpenAI Vision → Lemma agent → keyword matching.
+**Fallback order:** Lemma `issue-classifier` agent → keyword matching on description.
 
 **Issue types:** `pothole`, `garbage`, `streetlight`, `water_leak`, `fallen_tree`, `manhole`, `illegal_dumping`, `road_damage`, `other`
 
@@ -121,7 +121,7 @@ Create and process a new petition.
   "location": { "address": "...", "lat": 12.97, "lng": 77.59 },
   "description": "Large pothole near bus stop",
   "vision_issue_type_override": "pothole",
-  "vision_classification": { "issue_type": "pothole", "confidence": 0.9, "reasoning": "...", "source": "openai_vision" }
+  "vision_classification": { "issue_type": "pothole", "confidence": 0.9, "reasoning": "...", "source": "lemma_vision" }
 }
 ```
 
@@ -196,7 +196,7 @@ Upload follow-up photo and run resolution verification.
     "resolved": true,
     "confidence": 0.91,
     "reasoning": "Follow-up photo shows pothole has been filled",
-    "source": "openai_vision"
+    "source": "lemma_resolution_checker"
   }
 }
 ```

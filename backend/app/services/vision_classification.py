@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any
 
-import httpx
-
-from app.config import settings
 from app.services import lemma_service
 from app.services.departments import ISSUE_KEYWORDS
 
@@ -73,70 +68,6 @@ def _keyword_classify(description: str) -> dict[str, Any]:
     }
 
 
-def _parse_json_response(text: str) -> dict[str, Any]:
-    text = text.strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        match = re.search(r"\{[\s\S]*\}", text)
-        if match:
-            try:
-                return json.loads(match.group())
-            except json.JSONDecodeError:
-                pass
-    return {}
-
-
-async def _classify_with_openai(photo_url: str, description: str) -> dict[str, Any] | None:
-    if not settings.openai_api_key.strip():
-        return None
-    prompt = (
-        "Classify this civic infrastructure issue image. "
-        f"Choose exactly one issue_type from: {', '.join(VISION_ISSUE_TYPES)}. "
-        "Return JSON only: "
-        '{"issue_type":"...","confidence":0.0-1.0,"reasoning":"brief visual explanation"}'
-    )
-    if description:
-        prompt += f"\nCitizen description: {description}"
-
-    payload = {
-        "model": settings.vision_model,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": photo_url}},
-                ],
-            }
-        ],
-        "max_tokens": 300,
-    }
-    try:
-        async with httpx.AsyncClient(timeout=settings.vision_timeout_seconds) as client:
-            resp = await client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
-                json=payload,
-            )
-        if resp.status_code != 200:
-            logger.warning("OpenAI vision failed: %s %s", resp.status_code, resp.text[:200])
-            return None
-        content = resp.json()["choices"][0]["message"]["content"]
-        data = _parse_json_response(content)
-        if not data.get("issue_type"):
-            return None
-        return {
-            "issue_type": normalize_issue_type(str(data["issue_type"])),
-            "confidence": float(data.get("confidence", 0.7)),
-            "reasoning": str(data.get("reasoning", "Visual analysis of uploaded photo.")),
-            "source": "openai_vision",
-        }
-    except Exception as exc:
-        logger.warning("OpenAI vision classification error: %s", exc)
-        return None
-
-
 async def _classify_with_lemma(photo_url: str, description: str) -> dict[str, Any] | None:
     if not lemma_service.is_lemma_available():
         return None
@@ -172,12 +103,11 @@ async def classify_image(
     *,
     description: str = "",
 ) -> dict[str, Any]:
-    """Classify a civic issue image. Tries OpenAI vision, then Lemma, then keywords."""
-    for classifier in (_classify_with_openai, _classify_with_lemma):
-        result = await classifier(photo_url, description)
-        if result:
-            result["confidence"] = round(min(1.0, max(0.0, float(result["confidence"]))), 2)
-            return result
+    """Classify a civic issue image. Tries Lemma issue-classifier, then keyword fallback."""
+    result = await _classify_with_lemma(photo_url, description)
+    if result:
+        result["confidence"] = round(min(1.0, max(0.0, float(result["confidence"]))), 2)
+        return result
 
     fallback = _keyword_classify(description)
     fallback["confidence"] = round(fallback["confidence"], 2)

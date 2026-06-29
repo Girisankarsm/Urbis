@@ -40,8 +40,6 @@ class Settings(BaseSettings):
     lemma_agent_timeout_seconds: int = 25
     lemma_pipeline_timeout_seconds: int = 8
     escalation_days: int = 3
-    openai_api_key: str = ""
-    vision_model: str = "gpt-4o-mini"
     vision_timeout_seconds: int = 30
     vision_enabled: bool = True
     severity_poi_radius_m: int = 500

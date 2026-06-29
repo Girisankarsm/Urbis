@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" role="img" aria-label="Urbis  civic issue reporting">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0c4a6e"/>
+      <stop offset="55%" stop-color="#075985"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="300" rx="24" fill="url(#bg)"/>
+  <ellipse cx="900" cy="80" rx="200" ry="120" fill="url(#glow)"/>
+  <ellipse cx="200" cy="220" rx="160" ry="80" fill="#e8a87c" opacity="0.08"/>
+
+  <!-- civic building -->
+  <g transform="translate(72, 88)" stroke="#e0f2fe" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 88V36l36-20 36 20v52"/>
+    <path d="M28 88V56h12v32M52 88V68h12v20"/>
+    <path d="M0 88h88"/>
+    <path d="M34 44h3M50 44h3"/>
+  </g>
+
+  <!-- pothole doodle -->
+  <g transform="translate(720, 175)" stroke="#bae6fd" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85">
+    <ellipse cx="40" cy="28" rx="36" ry="12"/>
+    <path d="M24 22c6-8 18-10 28-4s12 2 18-4" opacity="0.6"/>
+  </g>
+
+  <!-- streetlight -->
+  <g transform="translate(880, 120)" stroke="#bae6fd" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.85">
+    <path d="M20 100V20"/>
+    <path d="M8 20h28c3 0 5 2 5 5v6c0 3-2 5-5 5H8"/>
+    <path d="M22 38c-10 3-14 12-12 22" opacity="0.5"/>
+    <circle cx="22" cy="12" r="4" fill="#38bdf8" fill-opacity="0.35" stroke="#bae6fd"/>
+  </g>
+
+  <!-- trash bin -->
+  <g transform="translate(620, 155)" stroke="#bae6fd" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.75">
+    <path d="M8 20h32l-4 36H12l-4-36z"/>
+    <path d="M4 20h40M6 10h36"/>
+    <path d="M14 28v16M26 28v16" opacity="0.5"/>
+  </g>
+
+  <!-- ground -->
+  <path d="M48 248h1104" stroke="#7dd3fc" stroke-width="1.5" opacity="0.25" stroke-linecap="round"/>
+
+  <!-- title -->
+  <text x="200" y="118" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="52" font-weight="700" fill="#ffffff" letter-spacing="-1">Urbis</text>
+  <text x="200" y="152" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="18" font-weight="500" fill="#bae6fd">Citizen civic-issue reporting</text>
+  <text x="200" y="182" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="15" fill="#e0f2fe" opacity="0.9">Photo · Route · Approve · Send from your Gmail</text>
+
+  <!-- pill badges -->
+  <rect x="200" y="208" width="118" height="32" rx="16" fill="#ffffff" fill-opacity="0.12" stroke="#7dd3fc" stroke-opacity="0.35"/>
+  <text x="259" y="229" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#f0f9ff">Lemma SDK</text>
+  <rect x="328" y="208" width="130" height="32" rx="16" fill="#ffffff" fill-opacity="0.12" stroke="#7dd3fc" stroke-opacity="0.35"/>
+  <text x="393" y="229" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#f0f9ff">Gappy AI Hackathon</text>
+</svg>

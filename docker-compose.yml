@@ -35,7 +35,6 @@ services:
       DEMO_EMAIL_TO: ${DEMO_EMAIL_TO:-municipal-demo@example.com}
       DEMO_EMAIL_REDIRECT: ${DEMO_EMAIL_REDIRECT:-false}
       ESCALATION_DAYS: ${ESCALATION_DAYS:-3}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
