@@ -151,17 +151,51 @@ def lemma_token_status() -> dict[str, Any]:
 async def _fetch_fresh_access_token(refresh_token: str) -> str:
     from lemma_sdk.auth import refresh_cli_session
 
-    session = await asyncio.to_thread(
-        refresh_cli_session,
-        base_url=settings.lemma_base_url,
-        refresh_token=refresh_token,
-        verify_ssl=True,
-        timeout=30.0,
-    )
-    new_token = (session.get("access_token") or session.get("token") or "").strip()
-    if not new_token:
-        raise RuntimeError("Lemma refresh succeeded but returned no access token")
-    return new_token
+    try:
+        session = await asyncio.to_thread(
+            refresh_cli_session,
+            base_url=settings.lemma_base_url,
+            refresh_token=refresh_token,
+            verify_ssl=True,
+            timeout=30.0,
+        )
+    except Exception as exc:
+        detail = exc
+        if isinstance(exc, dict):
+            detail = exc.get("message") or exc.get("details") or str(exc)
+        raise RuntimeError(f"Lemma refresh failed: {detail}") from exc
+
+    if isinstance(session, dict):
+        new_token = (session.get("access_token") or session.get("token") or "").strip()
+        if not new_token:
+            raise RuntimeError("Lemma refresh succeeded but returned no access token")
+        return new_token
+    raise RuntimeError("Lemma refresh returned unexpected response")
+
+
+def _get_cli_access_token() -> str:
+    config_path = _lemma_config_path()
+    if not config_path.is_file():
+        return ""
+    try:
+        data = json.loads(config_path.read_text())
+        server = data.get("active_server", "default")
+        servers = data.get("servers", {})
+        server_cfg = servers.get(server, {}) if isinstance(servers, dict) else {}
+        auth = server_cfg.get("auth", {}) if isinstance(server_cfg.get("auth"), dict) else {}
+        return str(auth.get("access_token") or server_cfg.get("token") or "").strip()
+    except (json.JSONDecodeError, OSError, AttributeError, TypeError):
+        return ""
+
+
+def _pick_usable_token(*candidates: str) -> str:
+    for token in candidates:
+        if token and not _token_needs_refresh(token):
+            return token
+    for token in candidates:
+        if token:
+            return token
+    return ""
 
 
 async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
@@ -170,6 +204,7 @@ async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
 
     refresh_token = _get_refresh_token()
     token = settings.lemma_token.strip()
+    cli_token = _get_cli_access_token()
 
     if (
         not force_refresh
@@ -178,29 +213,42 @@ async def resolve_lemma_token(*, force_refresh: bool = False) -> str:
     ):
         return _resolved_token
 
-    if not force_refresh and token and not _token_needs_refresh(token):
-        return token
+    usable = _pick_usable_token(token, cli_token, _resolved_token or "")
+    if not force_refresh and usable and not _token_needs_refresh(usable):
+        _resolved_token = usable
+        _resolved_token_exp = _token_expiry(usable)
+        return usable
 
-    if refresh_token:
-        new_token = await _fetch_fresh_access_token(refresh_token)
-        _resolved_token = new_token
-        _resolved_token_exp = _token_expiry(new_token)
-        logger.info("Lemma access token refreshed automatically")
-        return new_token
+    if refresh_token and (force_refresh or _token_needs_refresh(usable or token or cli_token)):
+        try:
+            new_token = await _fetch_fresh_access_token(refresh_token)
+            _resolved_token = new_token
+            _resolved_token_exp = _token_expiry(new_token)
+            logger.info("Lemma access token refreshed automatically")
+            return new_token
+        except Exception as exc:
+            logger.warning("Lemma token refresh failed, using existing token if valid: %s", exc)
+            fallback = _pick_usable_token(token, cli_token, _resolved_token or "")
+            if fallback and not _token_needs_refresh(fallback):
+                return fallback
+            raise RuntimeError(
+                "Lemma session expired and refresh failed — run `backend/.venv/bin/lemma auth login` "
+                "then `./scripts/sync-lemma-env.sh` to update .env"
+            ) from exc
 
-    if token:
-        return token
+    if usable:
+        return usable
 
     raise RuntimeError(
-        "Lemma not configured — set LEMMA_REFRESH_TOKEN in .env (run ./scripts/lemma-env-hint.sh)"
+        "Lemma not configured — set LEMMA_REFRESH_TOKEN in .env (run ./scripts/sync-lemma-env.sh)"
     )
 
 
 async def warm_lemma_token() -> None:
-    """Refresh Lemma credentials on API startup."""
+    """Validate Lemma credentials on API startup without forcing a refresh."""
     if not settings.lemma_enabled:
         return
-    await resolve_lemma_token(force_refresh=bool(_get_refresh_token()))
+    await resolve_lemma_token(force_refresh=False)
 
 
 async def _lemma_refresh_loop() -> None:
@@ -267,8 +315,8 @@ async def verify_lemma_api() -> dict[str, Any]:
                 "token_valid": False,
                 "api_reachable": False,
                 "reason": (
-                    "Lemma rejected the token (401). Use `lemma auth print-token` for LEMMA_TOKEN "
-                    "and copy refresh_token from ~/.lemma/config.json into LEMMA_REFRESH_TOKEN."
+                    "Lemma rejected the token (401). Run `backend/.venv/bin/lemma auth login`, "
+                    "then `./scripts/sync-lemma-env.sh` to refresh .env."
                 ),
             }
         return {
@@ -282,7 +330,17 @@ async def verify_lemma_api() -> dict[str, Any]:
 
 
 def is_lemma_available() -> bool:
-    return settings.lemma_enabled
+    """True when Lemma is configured and we have a usable or refreshable token."""
+    if not settings.lemma_enabled:
+        return False
+    token = _pick_usable_token(
+        settings.lemma_token.strip(),
+        _get_cli_access_token(),
+        _resolved_token or "",
+    )
+    if token and not _token_needs_refresh(token):
+        return True
+    return bool(_get_refresh_token())
 
 
 def _build_pod(token: str):

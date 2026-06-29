@@ -30,7 +30,7 @@ defaults = srv.get("defaults", {})
 pod_id = defaults.get("pod_id", "")
 org_id = defaults.get("org_id", "")
 
-print("# Paste into .env (repo root) — LEMMA_TOKEN is optional (auto-refreshed):")
+print("# Paste into .env (repo root) — or run ./scripts/sync-lemma-env.sh to apply automatically:")
 print(f"LEMMA_REFRESH_TOKEN={refresh}")
 if pod_id:
     print(f"LEMMA_POD_ID={pod_id}")
