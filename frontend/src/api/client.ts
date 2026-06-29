@@ -9,16 +9,16 @@ export interface AuthUser {
 }
 
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
-const API = `${API_BASE}/api`
+/** Same-origin `/api` in production (Vercel proxy); absolute URL only for local cross-port dev. */
+const API = API_BASE ? `${API_BASE}/api` : '/api'
 
 export function apiBaseUrl(): string {
   return API_BASE
 }
 
 export function loginUrl(reconnect = false): string {
-  return reconnect
-    ? `${API_BASE}/api/auth/google?reconnect=1`
-    : `${API_BASE}/api/auth/google`
+  const path = reconnect ? '/api/auth/google?reconnect=1' : '/api/auth/google'
+  return API_BASE ? `${API_BASE}${path}` : path
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

@@ -108,6 +108,7 @@ async def google_callback(request: Request):
         samesite=settings.effective_cookie_samesite,
         secure=settings.effective_cookie_secure,
         max_age=SESSION_DAYS * 24 * 3600,
+        path="/",
     )
     return response
 
@@ -125,5 +126,6 @@ async def logout():
         COOKIE_NAME,
         samesite=settings.effective_cookie_samesite,
         secure=settings.effective_cookie_secure,
+        path="/",
     )
     return response

@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     session_secret: str = "change-me-in-production"
     cookie_secure: bool = False
     cookie_samesite: str = "lax"
+    cookie_cross_site: bool = False
 
     @field_validator("cookie_secure", mode="before")
     @classmethod
@@ -75,6 +76,13 @@ class Settings(BaseSettings):
             if normalized in {"lax", "strict", "none"}:
                 return normalized
         return "lax"
+
+    @field_validator("cookie_cross_site", mode="before")
+    @classmethod
+    def parse_cookie_cross_site(cls, value: object) -> bool:
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes"}
+        return bool(value)
 
     @field_validator("demo_email_redirect", mode="before")
     @classmethod
@@ -144,7 +152,8 @@ class Settings(BaseSettings):
 
     @property
     def effective_cookie_samesite(self) -> str:
-        if self.is_production and self.cookie_samesite == "lax":
+        # Cross-origin API (no Vercel proxy): upgrade lax → none so cookies work on credentialed fetches.
+        if self.is_production and self.cookie_cross_site and self.cookie_samesite == "lax":
             return "none"
         return self.cookie_samesite
 

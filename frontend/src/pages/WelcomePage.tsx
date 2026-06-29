@@ -10,6 +10,8 @@ import { useInView } from '../hooks/useInView'
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled. Add your email as a test user in Google Cloud Console if the app is in Testing mode.',
   denied: 'Google sign-in was denied. Publish the OAuth consent screen or add yourself as a test user.',
+  session_failed:
+    'Sign-in completed but your session was not saved. On mobile, use the site in Safari/Chrome (not an in-app browser). Try again, or clear site data and sign in once more.',
 }
 
 const STEPS = [
@@ -37,7 +39,7 @@ const STEPS = [
 
 export function WelcomePage() {
   const navigate = useNavigate()
-  const { user, loading, googleEnabled, login } = useAuth()
+  const { user, loading, googleEnabled, authError: contextAuthError, clearAuthError, login } = useAuth()
   const [authError, setAuthError] = useState('')
   const [contentReady, setContentReady] = useState(false)
   const [loaderPhase, setLoaderPhase] = useState<'loading' | 'exiting' | 'done'>('loading')
@@ -54,6 +56,12 @@ export function WelcomePage() {
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [])
+
+  useEffect(() => {
+    if (!contextAuthError) return
+    setAuthError(AUTH_ERROR_MESSAGES[contextAuthError] ?? 'Sign-in failed. Please try again.')
+    clearAuthError()
+  }, [contextAuthError, clearAuthError])
 
   useEffect(() => {
     if (loading) return

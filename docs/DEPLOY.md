@@ -95,13 +95,11 @@ curl https://<your-api>.onrender.com/api/health
 
 1. Import GitHub repo → set **Root Directory** to `frontend`.
 2. Framework: Vite (auto-detected).
-3. Environment variable:
-   ```
-   VITE_API_URL=https://<your-render-api>.onrender.com
-   ```
-4. Deploy.
+3. **Do not set `VITE_API_URL`** — the app uses same-origin `/api/*` so session cookies work on mobile Safari.
+4. In `frontend/vercel.json`, set the rewrite destination to your Render API URL.
+5. Deploy.
 
-`frontend/vercel.json` handles SPA routing.
+`frontend/vercel.json` proxies `/api/*` and `/uploads/*` to Render and handles SPA routing.
 
 ---
 
@@ -110,17 +108,19 @@ curl https://<your-api>.onrender.com/api/health
 In [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
 
 1. OAuth client → **Authorized JavaScript origins**: `https://<vercel-domain>`
-2. **Authorized redirect URIs**: `https://<render-api>/api/auth/google/callback`
+2. **Authorized redirect URIs**: `https://<vercel-domain>/api/auth/google/callback` (proxied to Render)
 3. Publish OAuth consent screen (Testing → Production when ready).
 
 Set on Render:
 
 ```
-GOOGLE_REDIRECT_URI=https://<render-api>/api/auth/google/callback
+GOOGLE_REDIRECT_URI=https://<vercel-domain>/api/auth/google/callback
 FRONTEND_URL=https://<vercel-domain>
 COOKIE_SECURE=true
-COOKIE_SAMESITE=none
+COOKIE_SAMESITE=lax
 ```
+
+Do **not** set `VITE_API_URL` on Vercel. Mobile browsers block third-party cookies when the frontend calls the Render API directly.
 
 ---
 
@@ -134,7 +134,7 @@ ENVIRONMENT=production \
 MONGODB_URL='mongodb+srv://...' \
 API_BASE_URL='https://your-api.onrender.com' \
 FRONTEND_URL='https://your-app.vercel.app' \
-GOOGLE_REDIRECT_URI='https://your-api.onrender.com/api/auth/google/callback' \
+GOOGLE_REDIRECT_URI='https://your-app.vercel.app/api/auth/google/callback' \
 ./scripts/check-deploy-ready.sh
 ```
 
@@ -146,10 +146,10 @@ GOOGLE_REDIRECT_URI='https://your-api.onrender.com/api/auth/google/callback' \
 |---|-------|------------|
 | MongoDB | `mongodb://localhost:27017` | MongoDB Atlas |
 | API | `http://localhost:8000` | Render HTTPS URL |
-| Frontend | `http://localhost:5173` (Vite proxy) | Vercel + `VITE_API_URL` |
+| Frontend | `http://localhost:5173` (Vite proxy) | Vercel (same-origin `/api` proxy) |
 | Images | Cloudinary or local `uploads/` | **Cloudinary required** |
 | Lemma tokens | `lemma auth login` + sync script | `LEMMA_REFRESH_TOKEN` in Render |
-| Cookies | `COOKIE_SAMESITE=lax` | `none` + `SECURE=true` |
+| Cookies | `COOKIE_SAMESITE=lax` | `lax` + `SECURE=true` (via Vercel proxy) |
 | Email test mode | `DEMO_EMAIL_REDIRECT=true` | **must be `false`** |
 
 ### Local without Docker

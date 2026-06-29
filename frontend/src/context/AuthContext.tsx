@@ -15,9 +15,11 @@ interface AuthContextValue {
   user: AuthUser | null
   loading: boolean
   googleEnabled: boolean
+  authError: string | null
+  clearAuthError: () => void
   login: () => void
   logout: () => Promise<void>
-  refresh: () => Promise<void>
+  refresh: () => Promise<AuthUser | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -27,32 +29,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const [googleEnabled, setGoogleEnabled] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
 
-  const refresh = useCallback(async () => {
+  const clearAuthError = useCallback(() => setAuthError(null), [])
+
+  const refresh = useCallback(async (): Promise<AuthUser | null> => {
     try {
       const status = await fetchAuthStatus()
       setGoogleEnabled(status.google_auth_enabled)
       if (!status.google_auth_enabled) {
         setUser(null)
-        return
+        return null
       }
       const me = await fetchAuthMe()
       setUser(me)
+      return me
     } catch {
       setUser(null)
+      return null
     }
   }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const justSignedIn = params.has('signed_in')
-    if (params.has('signed_in') || params.has('auth_error')) {
+    const authError = params.get('auth_error')
+    if (justSignedIn || authError) {
       window.history.replaceState({}, '', window.location.pathname)
     }
-    refresh().finally(() => {
+    refresh().then((me) => {
       setLoading(false)
-      if (justSignedIn) {
+      if (justSignedIn && me) {
         navigate('/dashboard', { replace: true })
+      } else if (justSignedIn && !me) {
+        setAuthError('session_failed')
       }
     })
   }, [refresh, navigate])
@@ -67,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, googleEnabled, login, logout, refresh }}>
+    <AuthContext.Provider
+      value={{ user, loading, googleEnabled, authError, clearAuthError, login, logout, refresh }}
+    >
       {children}
     </AuthContext.Provider>
   )
