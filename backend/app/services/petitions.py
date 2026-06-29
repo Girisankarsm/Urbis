@@ -18,12 +18,13 @@ from app.models import (
 from app.services import lemma_service
 from app.services.ai import check_resolution, draft_complaint_email, draft_escalation_email
 from app.services.authority_discovery import discover_with_timeout
-from app.services.authority_lookup import lookup_authority, merge_lemma_classification
+from app.services.authority_lookup import lookup_authority
 from app.services.departments import DEPARTMENTS
 from app.services.email import send_email
 from app.services.explainability import build_ai_explanations
 from app.services.geocoding import reverse_geocode
 from app.services.gmail import send_gmail_as_user
+from app.services.lemma_pipeline import run_lemma_intake
 from app.services.resolution_verification import verify_resolution
 from app.services.severity_analysis import analyze_severity
 from app.services.vision_classification import classify_image, normalize_issue_type
@@ -91,7 +92,16 @@ async def get_petition(db: AsyncIOMotorDatabase, petition_id: str) -> dict | Non
             doc = await db.petitions.find_one({"_id": ObjectId(petition_id)})
         except Exception:
             doc = None
-    return _serialize(doc) if doc else None
+    if not doc:
+        return None
+    petition = _serialize(doc)
+    pod_id = petition.get("lemma_pod_petition_id")
+    if pod_id and lemma_service.is_lemma_available():
+        pod_row = await lemma_service.fetch_pod_petition(str(pod_id))
+        if pod_row:
+            petition["lemma_pod_status"] = pod_row.get("status")
+            petition["lemma_pod_synced_at"] = pod_row.get("updated_at") or pod_row.get("submitted_at")
+    return petition
 
 
 async def delete_petition(db: AsyncIOMotorDatabase, petition_id: str) -> bool:
@@ -109,7 +119,79 @@ async def delete_petition(db: AsyncIOMotorDatabase, petition_id: str) -> bool:
 
 async def get_activity(db: AsyncIOMotorDatabase, petition_id: str) -> list[dict]:
     cursor = db.activity_log.find({"petition_id": petition_id}).sort("timestamp", 1)
-    return [_serialize(doc) async for doc in cursor]
+    local = [_serialize(doc) async for doc in cursor]
+    petition = await get_petition(db, petition_id)
+    pod_id = (petition or {}).get("lemma_pod_petition_id")
+    if pod_id and lemma_service.is_lemma_available():
+        pod_events = await lemma_service.fetch_pod_activity(str(pod_id))
+        for event in pod_events:
+            local.append(
+                {
+                    "id": f"lemma-{event.get('id', event.get('event_type', 'pod'))}",
+                    "petition_id": petition_id,
+                    "event_type": event.get("event_type", "lemma_sync"),
+                    "message": event.get("message", "Lemma pod activity"),
+                    "metadata": event.get("metadata") or {},
+                    "timestamp": event.get("timestamp") or event.get("created_at"),
+                    "source": "lemma_pod",
+                }
+            )
+        local.sort(key=lambda e: e.get("timestamp") or "")
+    return local
+
+
+async def _fallback_classify_and_route(
+    db: AsyncIOMotorDatabase,
+    *,
+    petition_id: str,
+    area,
+    description: str,
+    vision_result: dict | None,
+    user_override: str | None,
+    initial,
+):
+    classification = initial
+    if vision_result and not user_override:
+        vision_type = normalize_issue_type(str(vision_result.get("issue_type", "")))
+        if vision_type != "other":
+            classification = lookup_authority(area, description, vision_type)
+            classification.confidence = max(
+                classification.confidence,
+                float(vision_result.get("confidence", 0.5)),
+            )
+            classification.reasoning = (
+                f"{vision_result.get('reasoning', '')} Routed to {classification.department}."
+            ).strip()
+    elif user_override:
+        classification = lookup_authority(area, description, user_override)
+
+    authority_source = classification.authority_source
+
+    if (
+        settings.authority_discovery_enabled
+        and not classification.has_contact
+        and authority_source not in {"verified", "cpgrams"}
+    ):
+        try:
+            discovered = await discover_with_timeout(
+                area,
+                description,
+                issue_type=classification.issue_type,
+                timeout_seconds=settings.authority_discovery_timeout_seconds,
+            )
+            if discovered and discovered.department_email:
+                classification = discovered
+                authority_source = "web_search"
+        except Exception as exc:
+            logger.warning("Web authority discovery failed: %s", exc)
+
+    if not classification.department_email and authority_source not in {"web_search", "lemma"}:
+        registry = lookup_authority(area, description, classification.issue_type)
+        if registry.department_email:
+            classification = registry
+            authority_source = "registry"
+
+    return classification, authority_source
 
 
 async def create_and_process_petition(
@@ -171,20 +253,82 @@ async def create_and_process_petition(
     if user_override:
         user_override = normalize_issue_type(user_override)
 
+    processing_path = "fallback"
+    lemma_invocations: list[str] = []
+    lemma_pod_petition_id: str | None = None
+    lemma_workflow_run_id: str | None = None
     classification = lookup_authority(area, req.description)
-    if vision_result and not user_override:
-        vision_type = normalize_issue_type(str(vision_result.get("issue_type", "")))
-        if vision_type != "other":
-            classification = lookup_authority(area, req.description, vision_type)
-            classification.confidence = max(
-                classification.confidence,
-                float(vision_result.get("confidence", 0.5)),
+    authority_source = classification.authority_source
+    draft: EmailDraft | None = None
+    lemma_powered = False
+
+    if lemma_service.is_lemma_available():
+        try:
+            lemma_result = await run_lemma_intake(
+                petition_id=petition_id,
+                photo_url=req.photo_url,
+                description=req.description,
+                location=req.location.model_dump(),
+                area=area,
             )
-            classification.reasoning = (
-                f"{vision_result.get('reasoning', '')} "
-                f"Routed to {classification.department}."
-            ).strip()
-    elif user_override:
+            lemma_invocations = lemma_result.invocations
+            lemma_pod_petition_id = lemma_result.pod_petition_id
+            lemma_workflow_run_id = lemma_result.workflow_run_id
+            if lemma_result.success and lemma_result.classification and lemma_result.draft:
+                classification = lemma_result.classification
+                draft = lemma_result.draft
+                authority_source = lemma_result.authority_source
+                processing_path = "lemma"
+                lemma_powered = True
+                await log_activity(
+                    db,
+                    petition_id,
+                    "classified",
+                    f"[Lemma] {classification.reasoning}",
+                    {**classification.model_dump(), "authority_source": authority_source, "lemma": True},
+                )
+            else:
+                logger.warning(
+                    "[fallback] Lemma intake incomplete for %s: %s",
+                    petition_id,
+                    lemma_result.error,
+                )
+                lemma_service.mark_fallback_path_active()
+        except Exception as exc:
+            logger.warning("[fallback] Lemma intake failed for %s: %s", petition_id, exc)
+            lemma_service.mark_fallback_path_active()
+    else:
+        lemma_service.mark_fallback_path_active()
+
+    if processing_path == "fallback":
+        classification, authority_source = await _fallback_classify_and_route(
+            db,
+            petition_id=petition_id,
+            area=area,
+            description=req.description,
+            vision_result=vision_result,
+            user_override=user_override,
+            initial=classification,
+        )
+        draft = draft_complaint_email(
+            classification.issue_type,
+            classification.department,
+            classification.department_email or "pending@verify.local",
+            req.location,
+            req.description,
+            req.photo_url,
+            area_display=area.display_name,
+            city=area.city,
+        )
+        await log_activity(
+            db,
+            petition_id,
+            "classified",
+            f"[Fallback] {classification.reasoning}",
+            {**classification.model_dump(), "authority_source": authority_source},
+        )
+
+    if user_override and processing_path == "fallback":
         classification = lookup_authority(area, req.description, user_override)
         classification.reasoning = (
             f"Citizen overrode vision prediction to '{user_override.replace('_', ' ')}'. "
@@ -193,122 +337,7 @@ async def create_and_process_petition(
         if vision_result:
             vision_result = {**vision_result, "user_override": user_override}
 
-    authority_source = classification.authority_source
-
-    # Web search only when verified/registry has no routable contact.
-    if (
-        settings.authority_discovery_enabled
-        and not classification.has_contact
-        and authority_source not in {"verified", "cpgrams"}
-    ):
-        try:
-            discovered = await discover_with_timeout(
-                area,
-                req.description,
-                issue_type=classification.issue_type,
-                timeout_seconds=settings.authority_discovery_timeout_seconds,
-            )
-            if discovered and discovered.department_email:
-                classification = discovered
-                authority_source = "web_search"
-                await log_activity(
-                    db,
-                    petition_id,
-                    "classified",
-                    f"[Web search] {classification.reasoning}",
-                    {**classification.model_dump(), "authority_source": authority_source},
-                )
-        except Exception as exc:
-            logger.warning("Web authority discovery failed: %s", exc)
-
-    lemma_powered = False
-    if (
-        lemma_service.is_lemma_available()
-        and authority_source not in {"web_search", "verified", "cpgrams"}
-    ):
-        try:
-            lemma_class = await asyncio.wait_for(
-                lemma_service.classify_with_lemma(
-                    petition_id=petition_id,
-                    photo_url=req.photo_url,
-                    description=req.description,
-                    lat=req.location.lat,
-                    lng=req.location.lng,
-                    address=req.location.address,
-                    area_display=area.display_name,
-                    city=area.city,
-                    municipality=area.municipality,
-                    district=area.district,
-                    suburb=area.suburb,
-                    state=area.state,
-                    country=area.country,
-                ),
-                timeout=settings.lemma_agent_timeout_seconds,
-            )
-            classification = merge_lemma_classification(lemma_class, area, req.description)
-            if classification.department_email:
-                authority_source = "lemma"
-            lemma_powered = True
-            await log_activity(
-                db,
-                petition_id,
-                "classified",
-                f"[Lemma agent] {classification.reasoning}",
-                {**classification.model_dump(), "lemma": True},
-            )
-        except Exception as exc:
-            logger.warning("Lemma classifier failed or timed out, using local authority lookup: %s", exc)
-            await log_activity(
-                db,
-                petition_id,
-                "classified",
-                f"[Local routing] {classification.reasoning}",
-                classification.model_dump(),
-            )
-    elif authority_source not in {"web_search", "lemma"}:
-        await log_activity(
-            db,
-            petition_id,
-            "classified",
-            classification.reasoning,
-            {**classification.model_dump(), "authority_source": authority_source},
-        )
-
-    if (
-        not classification.department_email
-        and authority_source not in {"web_search", "lemma"}
-    ):
-        registry = lookup_authority(area, req.description, classification.issue_type)
-        if registry.department_email:
-            classification = registry
-            authority_source = "registry"
-
-    draft = draft_complaint_email(
-        classification.issue_type,
-        classification.department,
-        classification.department_email or "pending@verify.local",
-        req.location,
-        req.description,
-        req.photo_url,
-        area_display=area.display_name,
-        city=area.city,
-    )
-
-    if lemma_service.is_lemma_available():
-        try:
-            lemma_draft = await asyncio.wait_for(
-                lemma_service.draft_email_with_lemma(petition_id=petition_id),
-                timeout=settings.lemma_agent_timeout_seconds,
-            )
-            if lemma_draft.get("subject") and lemma_draft.get("body"):
-                draft = EmailDraft(
-                    subject=lemma_draft["subject"],
-                    body=lemma_draft["body"],
-                    to_email=lemma_draft.get("to_email") or classification.department_email,
-                )
-                lemma_powered = True
-        except Exception as exc:
-            logger.warning("Lemma drafter failed or timed out, using local draft: %s", exc)
+    assert draft is not None
 
     severity_result: dict | None = None
     try:
@@ -343,6 +372,10 @@ async def create_and_process_petition(
         "complaint_email_subject": draft.subject,
         "complaint_email_draft": draft.body,
         "lemma_powered": lemma_powered,
+        "processing_path": processing_path,
+        "lemma_invocations": lemma_invocations,
+        "lemma_pod_petition_id": lemma_pod_petition_id,
+        "lemma_workflow_run_id": lemma_workflow_run_id,
         "updated_at": datetime.now(timezone.utc),
     }
     if vision_result:
@@ -440,6 +473,25 @@ async def approve_and_send(
     send_from = settings.smtp_from
     sent_via = ""
 
+    if petition.get("lemma_powered") and lemma_service.is_lemma_available():
+        pod_target = str(petition.get("lemma_pod_petition_id") or petition_id)
+        try:
+            result = await asyncio.wait_for(
+                lemma_service.send_email_with_lemma(
+                    petition_id=pod_target,
+                    subject=req.subject,
+                    body=req.body,
+                    to_email=to_email,
+                    approved=True,
+                    is_escalation=req.is_escalation,
+                ),
+                timeout=settings.lemma_pipeline_timeout_seconds,
+            )
+            send_message = result.get("message", "")
+            sent_via = "lemma_function"
+        except Exception as exc:
+            logger.warning("Lemma send_complaint_email failed: %s", exc)
+
     if settings.google_auth_enabled and sender:
         refresh_token = (sender.get("google_refresh_token") or "").strip()
         if not refresh_token:
@@ -490,24 +542,6 @@ async def approve_and_send(
                     send_message += f" (demo delivery to {to_email}; authority: {intended_to})"
         except Exception as exc:
             logger.warning("Gmail send failed, trying fallbacks: %s", exc)
-
-    if not sent and lemma_service.is_lemma_available() and petition.get("lemma_powered"):
-        try:
-            result = await asyncio.wait_for(
-                lemma_service.send_email_with_lemma(
-                    petition_id=petition_id,
-                    subject=req.subject,
-                    body=req.body,
-                    to_email=to_email,
-                    approved=True,
-                    is_escalation=req.is_escalation,
-                ),
-                timeout=settings.lemma_agent_timeout_seconds,
-            )
-            sent = bool(result.get("email_sent"))
-            send_message = result.get("message", "")
-        except Exception as exc:
-            logger.warning("Lemma send failed, falling back to SMTP: %s", exc)
 
     if not sent:
         sent = send_email(to_email, req.subject, req.body)
@@ -584,6 +618,7 @@ async def upload_follow_up(
     await log_activity(db, petition_id, "follow_up_uploaded", "Citizen uploaded follow-up photo")
 
     original_url = petition.get("photo_url", "")
+    verdict_data: dict[str, Any]
     try:
         verdict_data = await verify_resolution(
             original_url=original_url,
@@ -598,6 +633,16 @@ async def upload_follow_up(
             petition.get("description", ""),
         )
         verdict_data = local.model_dump()
+
+    if petition.get("lemma_powered") and lemma_service.is_lemma_available():
+        pod_target = str(petition.get("lemma_pod_petition_id") or petition_id)
+        try:
+            await asyncio.wait_for(
+                lemma_service.update_resolution_in_pod(petition_id=pod_target, verdict=verdict_data),
+                timeout=settings.lemma_pipeline_timeout_seconds,
+            )
+        except Exception as exc:
+            logger.warning("Lemma update_resolution_status failed: %s", exc)
 
     status = verdict_data.get("recommended_status") or (
         "resolved" if verdict_data.get("resolved") else "under_review"
@@ -656,6 +701,32 @@ async def prepare_escalation(
 
     pid = petition["id"]
     draft = draft_escalation_email(petition)
+    escalation_invocations: list[str] = []
+
+    if lemma_service.is_lemma_available():
+        try:
+            wf = await asyncio.wait_for(
+                lemma_service.run_escalation_pipeline(),
+                timeout=settings.lemma_pipeline_timeout_seconds,
+            )
+            if wf.get("run_id"):
+                escalation_invocations.append("workflow:escalation-pipeline")
+            pod_result = await asyncio.wait_for(
+                lemma_service.escalate_petition_in_pod(
+                    petition_id=str(petition.get("lemma_pod_petition_id") or pid),
+                ),
+                timeout=settings.lemma_pipeline_timeout_seconds,
+            )
+            escalation_invocations.append("function:escalate_petition")
+            if pod_result.get("subject") and pod_result.get("body"):
+                draft = EmailDraft(
+                    subject=str(pod_result["subject"]),
+                    body=str(pod_result["body"]),
+                    to_email=str(pod_result.get("to_email") or draft.to_email),
+                )
+        except Exception as exc:
+            logger.warning("Lemma escalation pipeline failed, using local draft: %s", exc)
+
     await db.petitions.update_one(
         {"_id": pid},
         {
@@ -663,6 +734,9 @@ async def prepare_escalation(
                 "escalation_email_draft": draft.body,
                 "status": PetitionStatus.UNDER_REVIEW.value,
                 "updated_at": datetime.now(timezone.utc),
+                "lemma_invocations": list(dict.fromkeys(
+                    (petition.get("lemma_invocations") or []) + escalation_invocations
+                )),
             }
         },
     )

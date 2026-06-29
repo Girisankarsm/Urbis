@@ -22,8 +22,53 @@ logger = logging.getLogger(__name__)
 _resolved_token: str | None = None
 _resolved_token_exp: float = 0.0
 _refresh_task: asyncio.Task[None] | None = None
+_runtime_status: dict[str, Any] = {
+    "live": False,
+    "pod_reachable": False,
+    "active_path": "fallback",
+    "last_check": None,
+    "last_invocations": [],
+    "pod_name": None,
+}
 
 TOKEN_REFRESH_BUFFER_SECONDS = 300  # refresh 5 minutes before expiry
+
+
+def _lemma_log(message: str, *args: object) -> None:
+    logger.info("[lemma] " + message, *args)
+
+
+def get_runtime_status() -> dict[str, Any]:
+    return dict(_runtime_status)
+
+
+def mark_lemma_path_active(invocations: list[str] | None = None) -> None:
+    _runtime_status["active_path"] = "lemma"
+    if invocations:
+        _runtime_status["last_invocations"] = list(invocations)
+
+
+def mark_fallback_path_active() -> None:
+    _runtime_status["active_path"] = "fallback"
+
+
+async def refresh_runtime_status() -> dict[str, Any]:
+    """Ping Lemma pod and update cached live/fallback status."""
+    global _runtime_status
+    checked_at = datetime.now(timezone.utc).isoformat()
+    result = await verify_lemma_api()
+    live = bool(result.get("token_valid") and result.get("api_reachable"))
+    _runtime_status = {
+        **get_runtime_status(),
+        "live": live,
+        "pod_reachable": bool(result.get("api_reachable")),
+        "last_check": checked_at,
+        "pod_name": result.get("pod_name"),
+        "reason": result.get("reason"),
+    }
+    if not live:
+        _runtime_status["active_path"] = "fallback"
+    return get_runtime_status()
 
 
 def _lemma_config_path() -> Path:
@@ -393,6 +438,7 @@ def _run_agent_sync(agent_name: str, message: str, *, token: str, timeout: int =
 
 
 async def run_agent(agent_name: str, message: str) -> dict[str, Any]:
+    _lemma_log("%s agent called", agent_name)
     token = await resolve_lemma_token()
     return await asyncio.to_thread(_run_agent_sync, agent_name, message, token=token)
 
@@ -407,6 +453,7 @@ def _run_function_sync(name: str, payload: dict[str, Any], *, token: str) -> dic
 
 
 async def run_function(name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    _lemma_log("%s function called", name)
     token = await resolve_lemma_token()
     return await asyncio.to_thread(_run_function_sync, name, payload, token=token)
 
@@ -498,3 +545,199 @@ async def send_email_with_lemma(
             "is_escalation": is_escalation,
         },
     )
+
+
+def _run_workflow_intake_sync(
+    workflow_name: str,
+    intake: dict[str, Any],
+    *,
+    token: str,
+    intake_node_id: str = "intake",
+    timeout: int = 8,
+) -> dict[str, Any]:
+    pod = _build_pod(token)
+    _lemma_log("%s workflow started", workflow_name)
+    run = pod.workflows.run(workflow_name).to_dict()
+    run_id = str(run.get("id") or "")
+    active_wait = run.get("active_wait") or {}
+    node_id = str(active_wait.get("node_id") or intake_node_id)
+    pod.workflows.submit_form(run_id, node_id=node_id, inputs=intake)
+
+    pod_petition_id: str | None = None
+    paused_at_approval = False
+    deadline = time.time() + timeout
+    last_detail: dict[str, Any] = run
+
+    while time.time() < deadline:
+        last_detail = pod.workflows.run_get(run_id).to_dict()
+        status = str(last_detail.get("status") or "").upper()
+        active_wait = last_detail.get("active_wait") or {}
+        wait_node = str(active_wait.get("node_id") or "")
+        if wait_node == "approval":
+            paused_at_approval = True
+            break
+        if status in {"COMPLETED", "FAILED", "CANCELLED"}:
+            break
+        outputs = last_detail.get("outputs") or {}
+        if isinstance(outputs, dict):
+            create_out = outputs.get("create_petition") or {}
+            if isinstance(create_out, dict) and create_out.get("petition_id"):
+                pod_petition_id = str(create_out["petition_id"])
+        time.sleep(0.75)
+
+    if not pod_petition_id:
+        outputs = last_detail.get("outputs") or {}
+        if isinstance(outputs, dict):
+            create_out = outputs.get("create_petition") or {}
+            if isinstance(create_out, dict):
+                pod_petition_id = str(create_out.get("petition_id") or "") or None
+
+    return {
+        "run_id": run_id,
+        "pod_petition_id": pod_petition_id,
+        "paused_at_approval": paused_at_approval,
+        "status": last_detail.get("status"),
+    }
+
+
+async def run_petition_pipeline_intake(intake: dict[str, Any]) -> dict[str, Any]:
+    token = await resolve_lemma_token()
+    return await asyncio.to_thread(
+        _run_workflow_intake_sync,
+        "petition-pipeline",
+        intake,
+        token=token,
+        timeout=settings.lemma_pipeline_timeout_seconds,
+    )
+
+
+def _run_escalation_pipeline_sync(*, token: str, timeout: int = 8) -> dict[str, Any]:
+    pod = _build_pod(token)
+    _lemma_log("escalation-pipeline workflow started")
+    run = pod.workflows.run("escalation-pipeline").to_dict()
+    run_id = str(run.get("id") or "")
+    deadline = time.time() + timeout
+    last_detail = run
+    while time.time() < deadline:
+        last_detail = pod.workflows.run_get(run_id).to_dict()
+        status = str(last_detail.get("status") or "").upper()
+        if status in {"COMPLETED", "FAILED", "CANCELLED", "WAITING"}:
+            break
+        time.sleep(0.75)
+    outputs = last_detail.get("outputs") or {}
+    escalate_out = outputs.get("escalate") if isinstance(outputs, dict) else {}
+    return {"run_id": run_id, "status": last_detail.get("status"), "escalate": escalate_out}
+
+
+async def run_escalation_pipeline() -> dict[str, Any]:
+    token = await resolve_lemma_token()
+    return await asyncio.to_thread(
+        _run_escalation_pipeline_sync,
+        token=token,
+        timeout=settings.lemma_pipeline_timeout_seconds,
+    )
+
+
+async def run_create_petition_function(
+    *,
+    petition_id: str,
+    photo_url: str,
+    description: str,
+    address: str,
+    lat: float,
+    lng: float,
+    workflow_run_id: str | None = None,
+) -> dict[str, Any]:
+    return await run_function(
+        "create_petition",
+        {
+            "photo_url": photo_url,
+            "description": description,
+            "address": address,
+            "lat": lat,
+            "lng": lng,
+            "workflow_run_id": workflow_run_id or petition_id,
+        },
+    )
+
+
+async def update_resolution_in_pod(
+    *,
+    petition_id: str,
+    verdict: dict[str, Any],
+) -> dict[str, Any]:
+    return await run_function(
+        "update_resolution_status",
+        {
+            "petition_id": petition_id,
+            "verdict": {
+                "resolved": bool(verdict.get("resolved")),
+                "confidence": float(verdict.get("confidence", 0)),
+                "reasoning": str(verdict.get("reasoning", "")),
+                "recommended_status": str(verdict.get("recommended_status") or "under_review"),
+            },
+        },
+    )
+
+
+async def escalate_petition_in_pod(*, petition_id: str | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"days_threshold": settings.escalation_days}
+    if petition_id:
+        payload["petition_id"] = petition_id
+    return await run_function("escalate_petition", payload)
+
+
+def _fetch_pod_petition_sync(pod_petition_id: str, *, token: str) -> dict[str, Any] | None:
+    pod = _build_pod(token)
+    try:
+        row = pod.table("petitions").get(pod_petition_id)
+        if isinstance(row, dict):
+            return row
+        if hasattr(row, "to_dict"):
+            return row.to_dict()
+    except Exception as exc:
+        logger.debug("Lemma pod petition fetch failed: %s", exc)
+    return None
+
+
+async def fetch_pod_petition(pod_petition_id: str) -> dict[str, Any] | None:
+    if not pod_petition_id or not is_lemma_available():
+        return None
+    try:
+        token = await resolve_lemma_token()
+        return await asyncio.to_thread(_fetch_pod_petition_sync, pod_petition_id, token=token)
+    except Exception as exc:
+        logger.debug("fetch_pod_petition error: %s", exc)
+        return None
+
+
+def _fetch_pod_activity_sync(pod_petition_id: str, *, token: str, limit: int = 20) -> list[dict[str, Any]]:
+    pod = _build_pod(token)
+    try:
+        resp = pod.table("activity_log").list(
+            filter=[{"petition_id": pod_petition_id}],
+            limit=limit,
+        )
+        data = resp.to_dict() if hasattr(resp, "to_dict") else resp
+        items = data.get("items") or data.get("records") or []
+        rows: list[dict[str, Any]] = []
+        for item in items:
+            if isinstance(item, dict):
+                rows.append(item.get("data") or item)
+        return rows
+    except Exception as exc:
+        logger.debug("Lemma pod activity fetch failed: %s", exc)
+        return []
+
+
+async def fetch_pod_activity(pod_petition_id: str, *, limit: int = 20) -> list[dict[str, Any]]:
+    if not pod_petition_id or not is_lemma_available():
+        return []
+    try:
+        token = await resolve_lemma_token()
+        return await asyncio.to_thread(
+            _fetch_pod_activity_sync, pod_petition_id, token=token, limit=limit
+        )
+    except Exception as exc:
+        logger.debug("fetch_pod_activity error: %s", exc)
+        return []

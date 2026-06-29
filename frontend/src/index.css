@@ -1048,6 +1048,40 @@ body {
   opacity: 0.35;
 }
 
+.lemma-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-right: 0.35rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lemma-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lemma-status-dot--live {
+  background: #4ade80;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.35);
+}
+
+.lemma-status-dot--fallback {
+  background: transparent;
+  border: 2px solid #94a3b8;
+}
+
+.lemma-status-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+}
+
 /* ── Report form: calm, guided civic form ── */
 
 .form-section {

@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     authority_discovery_enabled: bool = True
     authority_discovery_timeout_seconds: int = 15
     lemma_agent_timeout_seconds: int = 25
+    lemma_pipeline_timeout_seconds: int = 8
     escalation_days: int = 3
     openai_api_key: str = ""
     vision_model: str = "gpt-4o-mini"

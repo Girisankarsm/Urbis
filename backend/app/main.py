@@ -10,7 +10,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.deploy_checks import validate_deploy_config
 from app.services.lemma_service import (
+    get_runtime_status,
     is_lemma_available,
+    refresh_runtime_status,
     start_lemma_token_refresh_loop,
     stop_lemma_token_refresh_loop,
     verify_lemma_api,
@@ -64,6 +66,7 @@ async def lifespan(app: FastAPI):
     if settings.lemma_enabled:
         try:
             await warm_lemma_token()
+            await refresh_runtime_status()
             start_lemma_token_refresh_loop()
             logger.info("Lemma auto-refresh enabled")
         except Exception as exc:
@@ -115,22 +118,26 @@ async def health_live():
 async def health():
     lemma = await verify_lemma_api()
     lemma_ok = bool(lemma.get("token_valid") and lemma.get("api_reachable"))
+    runtime = get_runtime_status()
     return {
         "status": "ok",
         "app": "Urbis",
         "environment": settings.environment,
         "lemma_connected": settings.lemma_enabled,
         "lemma_token_valid": lemma_ok,
+        "lemma_live": runtime.get("live", lemma_ok),
+        "lemma_active_path": runtime.get("active_path", "fallback"),
+        "lemma_last_invocations": runtime.get("last_invocations", []),
         "lemma_token_type": lemma.get("token_type"),
         "lemma_expires_at": lemma.get("expires_at"),
         "lemma_status": "ok" if lemma_ok else lemma.get("reason", "Lemma not verified"),
         "smtp_configured": bool(settings.smtp_host),
         "email_mode": (
-            "lemma_gmail_or_smtp"
+            "lemma_primary"
             if lemma_ok
             else ("gmail" if settings.google_auth_enabled else "smtp" if settings.smtp_host else "log_only")
         ),
-        "authority_lookup": "verified registry + regional fallback" + (" + lemma agents" if lemma_ok else ""),
+        "authority_lookup": "lemma pod primary, verified registry fallback" if lemma_ok else "verified registry + regional fallback",
         "google_auth_enabled": settings.google_auth_enabled,
         "cloudinary_configured": settings.cloudinary_enabled,
         "image_storage": "cloudinary" if settings.cloudinary_enabled else "local",
@@ -144,7 +151,9 @@ async def health():
 
 @app.get("/api/health/lemma")
 async def lemma_health():
-    return await verify_lemma_api()
+    lemma = await verify_lemma_api()
+    runtime = await refresh_runtime_status()
+    return {**lemma, **runtime}
 
 
 @app.get("/api/authorities/verified")

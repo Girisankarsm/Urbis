@@ -12,10 +12,6 @@ function isStandalone(): boolean {
   )
 }
 
-function isMobileDevice(): boolean {
-  return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent)
-}
-
 export function usePwaInstall() {
   const deferredRef = useRef<BeforeInstallPromptEvent | null>(null)
   const [isInstalled, setIsInstalled] = useState(isStandalone)

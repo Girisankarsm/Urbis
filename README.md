@@ -81,12 +81,14 @@ When Google OAuth is enabled, users only see **their own** petitions and approva
 
 ### Authority routing priority
 
-For locations across India, the backend resolves the government contact in this order:
+When the Lemma pod is live, **civic-lens runs first** (workflow → agents → functions). Local verified registry + regional routing is used only if Lemma times out or is unreachable. Each petition stores `processing_path` (`lemma` | `fallback`) and `lemma_invocations` for demo proof.
 
-1. **Regional registry** — verified `.gov.in` contacts for 30+ cities (GCC, BBMP, BMC, TMC, …)
-2. **Web search** — DuckDuckGo when the registry has no email
-3. **Lemma `issue-classifier`** — WEB_SEARCH + pod knowledge when Lemma is connected
-4. **Manual edit** — citizen corrects the **To** field on the approval screen
+Fallback order when Lemma is down:
+
+1. **Verified registry** — source-backed contacts in `verified_authorities.json`
+2. **Regional registry** — major Indian metros
+3. **Web search** — DuckDuckGo when no email is found
+4. **Manual edit** — citizen corrects the **To** field on approval
 
 ---
 

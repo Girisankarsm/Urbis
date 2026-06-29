@@ -148,7 +148,7 @@ async def verify_resolution(
     description: str = "",
 ) -> dict[str, Any]:
     """Compare before/after images and return resolution verdict."""
-    for verifier in (_verify_with_openai, _verify_with_lemma):
+    for verifier in (_verify_with_lemma, _verify_with_openai):
         result = await verifier(original_url, follow_up_url, issue_type, description)
         if result:
             result["confidence"] = round(min(1.0, max(0.0, float(result["confidence"]))), 2)
