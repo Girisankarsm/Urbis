@@ -52,12 +52,6 @@ export function HubPage() {
     return reports.filter((r) => r.issue_type === issueFilter)
   }, [reports, issueFilter])
 
-  const stats = useMemo(() => {
-    const totalUpvotes = reports.reduce((sum, r) => sum + (r.upvote_count || 0), 0)
-    const yours = reports.filter((r) => r.upvoted_by_me).length
-    return { count: reports.length, totalUpvotes, yours }
-  }, [reports])
-
   const activeFilterLabel = ISSUE_FILTERS.find((f) => f.value === issueFilter)?.label ?? 'All issues'
 
   const handleFilterSelect = (value: IssueFilter) => {
@@ -110,14 +104,6 @@ export function HubPage() {
             + Report Issue
           </Link>
         </header>
-
-        {!loading && reports.length > 0 && (
-          <section className="hub-stats" aria-label="Hub statistics">
-            <StatCard label="Public reports" value={stats.count} />
-            <StatCard label="Community upvotes" value={stats.totalUpvotes} />
-            <StatCard label="You supported" value={stats.yours} />
-          </section>
-        )}
       </div>
 
       <section className="hub-panel">
@@ -244,15 +230,6 @@ export function HubPage() {
           </div>
         )}
       </section>
-    </div>
-  )
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="hub-stat-card">
-      <p className="hub-stat-value">{value}</p>
-      <p className="hub-stat-label">{label}</p>
     </div>
   )
 }
