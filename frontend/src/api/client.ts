@@ -61,6 +61,14 @@ export async function fetchAuthMe(): Promise<AuthUser> {
   return request('/auth/me')
 }
 
+export async function completeSignIn(code: string): Promise<AuthUser> {
+  return request('/auth/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+}
+
 export async function logout(): Promise<void> {
   await request('/auth/logout', { method: 'POST' })
 }

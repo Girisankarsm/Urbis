@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { fetchAuthMe, fetchAuthStatus, loginUrl, logout as apiLogout } from '../api/client'
+import { fetchAuthMe, fetchAuthStatus, loginUrl, logout as apiLogout, completeSignIn } from '../api/client'
 
 export interface AuthUser {
   id: string
@@ -12,6 +12,28 @@ export interface AuthUser {
 }
 
 const PENDING_SIGN_IN_KEY = 'urbis_pending_sign_in'
+
+function markPendingSignIn() {
+  try {
+    sessionStorage.setItem(PENDING_SIGN_IN_KEY, '1')
+    localStorage.setItem(PENDING_SIGN_IN_KEY, '1')
+  } catch {
+    // Private mode / storage blocked — auth_code exchange still works.
+  }
+}
+
+function consumePendingSignIn(): boolean {
+  try {
+    const pending =
+      sessionStorage.getItem(PENDING_SIGN_IN_KEY) === '1' ||
+      localStorage.getItem(PENDING_SIGN_IN_KEY) === '1'
+    sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
+    localStorage.removeItem(PENDING_SIGN_IN_KEY)
+    return pending
+  } catch {
+    return false
+  }
+}
 
 interface AuthContextValue {
   user: AuthUser | null
@@ -59,30 +81,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const params = new URLSearchParams(window.location.search)
     const urlAuthError = params.get('auth_error')
+    const authCode = params.get('auth_code')
 
     if (params.has('signed_in')) {
-      sessionStorage.setItem(PENDING_SIGN_IN_KEY, '1')
+      markPendingSignIn()
     }
-    if (params.has('signed_in') || urlAuthError) {
+    if (params.has('signed_in') || urlAuthError || authCode) {
       window.history.replaceState({}, '', window.location.pathname)
     }
     if (urlAuthError) {
       setAuthError(urlAuthError)
     }
 
-    const pendingSignIn = sessionStorage.getItem(PENDING_SIGN_IN_KEY) === '1'
+    const pendingSignIn = consumePendingSignIn() || Boolean(authCode)
 
-    refresh().then((me) => {
+    async function bootstrap() {
+      if (authCode) {
+        try {
+          await completeSignIn(authCode)
+        } catch {
+          setAuthError('session_failed')
+        }
+      }
+
+      let me = await refresh()
+      if (!me && pendingSignIn) {
+        // Mobile Safari can lag applying Set-Cookie on the first request.
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        me = await refresh()
+      }
+
       setLoading(false)
       if (pendingSignIn) {
-        sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
         if (me) {
           navigate('/dashboard', { replace: true })
         } else {
           setAuthError('session_failed')
         }
       }
-    })
+    }
+
+    void bootstrap()
   }, [refresh, navigate])
 
   const login = () => {
@@ -92,7 +131,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await apiLogout()
     setUser(null)
-    sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
+    try {
+      sessionStorage.removeItem(PENDING_SIGN_IN_KEY)
+      localStorage.removeItem(PENDING_SIGN_IN_KEY)
+    } catch {
+      // ignore
+    }
   }
 
   return (

@@ -3,13 +3,16 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user, user_profile
+from app.services.auth_codes import consume_auth_code, create_auth_code
+from app.services.auth_cookies import attach_session_cookie, clear_session_cookie
 from app.services.oauth_redirect import oauth_redirect_uri
-from app.services.session import COOKIE_NAME, SESSION_DAYS, create_session_token
-from app.services.users import upsert_google_user
+from app.services.session import SESSION_DAYS, create_session_token
+from app.services.users import get_user_by_id, upsert_google_user
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +34,10 @@ oauth.register(
 
 def _auth_enabled() -> bool:
     return bool(settings.google_client_id and settings.google_client_secret)
+
+
+class AuthCompleteRequest(BaseModel):
+    code: str = Field(min_length=16, max_length=128)
 
 
 @router.get("/status")
@@ -101,16 +108,38 @@ async def google_callback(request: Request):
         name=user.get("name", ""),
     )
 
-    response = RedirectResponse(url=f"{settings.frontend_url}/?signed_in=1")
-    response.set_cookie(
-        key=COOKIE_NAME,
-        value=session_token,
-        httponly=True,
-        samesite=settings.effective_cookie_samesite,
-        secure=settings.effective_cookie_secure,
-        max_age=SESSION_DAYS * 24 * 3600,
-        path="/",
+    auth_code = await create_auth_code(db, user_id=user["_id"])
+    response = RedirectResponse(
+        url=f"{settings.frontend_url}/?signed_in=1&auth_code={auth_code}",
     )
+    attach_session_cookie(response, session_token)
+    return response
+
+
+@router.post("/complete")
+async def complete_sign_in(body: AuthCompleteRequest):
+    """
+    Exchange a one-time post-OAuth code for a session cookie.
+
+    Mobile Safari often drops cookies set on OAuth redirect responses; this POST
+    sets the session cookie on a normal same-origin API response instead.
+    """
+    db = get_db()
+    user_id = await consume_auth_code(db, body.code.strip())
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Sign-in link expired — please try again")
+
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+
+    session_token = create_session_token(
+        user_id=user["_id"],
+        email=user.get("email", ""),
+        name=user.get("name", ""),
+    )
+    response = JSONResponse(user_profile(user))
+    attach_session_cookie(response, session_token)
     return response
 
 
@@ -123,10 +152,5 @@ async def me(request: Request):
 @router.post("/logout")
 async def logout():
     response = JSONResponse({"ok": True})
-    response.delete_cookie(
-        COOKIE_NAME,
-        samesite=settings.effective_cookie_samesite,
-        secure=settings.effective_cookie_secure,
-        path="/",
-    )
+    clear_session_cookie(response)
     return response
